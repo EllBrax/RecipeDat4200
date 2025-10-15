@@ -1,5 +1,7 @@
 import { Routes } from "react-router-dom";
+import TheKitchen from "../pages/TheKitchen";
 
 <Routes>
-    <Route path="homepage" element={<Homepage/>}/>
+    <Route path="/" element={<Home/>}/>
+    <Route path="/thekitchen" element={<TheKitchen/>}/>
 </Routes>
