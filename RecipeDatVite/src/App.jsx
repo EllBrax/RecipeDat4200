@@ -2,7 +2,8 @@ import { Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
 import About from './pages/About'
 import Cookbook from './pages/Cookbook'
-import NewRecipe from './pages/NewRecipe'
+import TheKitchen from "./pages/TheKitchen";
+
 
 export default function App() {
   return (
@@ -11,14 +12,14 @@ export default function App() {
         <Link to="/">Home</Link>
         <Link to="/about">About</Link>
         <Link to="/cookbook">Cookbook</Link>
-        <Link to="/newrecipe">New Recipe</Link>
+        <Link to="/thekitchen">The Kitchen</Link>
       </nav>
 
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/cookbook" element={<Cookbook />}/>
-        <Route path="/newrecipe" element={<NewRecipe/>}/>
+        <Route path="/thekitchen" element={<TheKitchen/>}/>
       </Routes>
     </div>
   )

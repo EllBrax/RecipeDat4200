@@ -13,6 +13,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.container {
+  max-width: 1120px;       /* or any width you prefer */
+  width: 100%;
+  margin-inline: auto;     /* centers the block */
+  padding-inline: 20px;    /* gutters */
+}
+
 a {
   font-weight: 500;
   color: #646cff;
@@ -24,8 +31,6 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
