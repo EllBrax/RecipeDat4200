@@ -186,3 +186,35 @@ a { color: inherit; text-decoration: none; }
 html, body { margin: 0; }
 body { overflow-x: clip; } /* or hidden if you prefer */
 
+/* src/pages/Home.css */
+
+.home {
+  min-height: calc(100vh - var(--header-h));
+  margin: 0;
+  display: block;
+
+  /* tighten the space right under the navbar */
+  padding-top: 8px;              /* adjust 0–16px to taste */
+}
+
+/* kill default top margins on the first heading/paragraph in Home */
+.home :is(h1, h2, h3, p, section, article):first-child {
+  margin-top: 0;
+}
+
+/* If you had a container previously adding side gaps, remove it or set: */
+.home .container {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Keep media responsive so nothing forces horizontal overflow */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+

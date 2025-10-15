@@ -1,6 +1,10 @@
-body {
-  background-color: #1f2021;
-  color: white;
-  font-family: Arial;
-  text-align: center;
+
+
+.about {
+  body {
+    background-color: #1f2021;
+    color: white;
+    font-family: Arial;
+    text-align: center;
+  }
 }

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";   // ← add
 import "./Home.css";
 
 export default function Home() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState("All");
 
@@ -19,17 +21,6 @@ export default function Home() {
 
   return (
     <main className="home" role="main">
-      {/* Top navigation (web) */}
-      <header className="site-header">
-        <div className="container header-inner">
-          <div className="brand-row">
-            <a className="brand" href="/" aria-label="RecipeDat Home">
-              RecipeDat
-            </a>
-          </div>
-        </div>
-      </header>
-
       {/* Page intro / search */}
       <section className="section pad-y">
         <div className="container">

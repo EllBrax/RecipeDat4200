@@ -1,0 +1,65 @@
+:root { --header-h: 64px; }
+
+/* Full-width top strip */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* BRAND centered relative to the full strip */
+.site-brand {
+  position: absolute;             /* center within the whole header strip */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  white-space: nowrap;
+  z-index: 1;           /* sit above the strip */
+}
+.site-brand a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Navbar content area (container) */
+.navbar {
+  position: relative;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: var(--pad-x);     /* align with page padding */
+  padding-right: var(--pad-x);
+}
+
+/* Left-aligned links */
+.nav-links {
+  display: flex;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 10px;
+  transition: background .15s ease, color .15s ease;
+}
+.nav-links a.active,
+.nav-links a:hover {
+  color: var(--text);
+  background: var(--elevated);
+}
+
+/* (Optional) keep brand readable on very small screens */
+@media (max-width: 520px) {
+  .site-brand { font-size: 1.05rem; }
+}
