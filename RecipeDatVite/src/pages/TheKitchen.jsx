@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./TheKitchen.css";
+import kitchenBg from "../assets/kitchen-bg.jpg"; // ← import the background image
 
 export default function TheKitchen() {
   const navigate = useNavigate();
@@ -115,7 +116,40 @@ export default function TheKitchen() {
 
   return (
     <main className="kitchen">
-      <div className="container">
+      {/* ==== BACKGROUND LAYERS (fixed) ==== */}
+      <div
+        className="kitchen-bg"
+        aria-hidden="true"
+        /* Inline styles ensure it works even if CSS classes are not picked up.
+           We use either the user-selected image (imageUrl) or the default kitchenBg. */
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          backgroundImage: `url(${imageUrl || kitchenBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          filter: "blur(24px) saturate(1.1) brightness(0.9)", // increase/decrease blur here
+          transform: "scale(1.06)", // avoids blur-edge clipping
+          willChange: "filter, transform",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        className="kitchen-overlay"
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1,
+          background: "linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55))",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* ==== CONTENT (above background layers) ==== */}
+      <div className="container" style={{ position: "relative", zIndex: 2 }}>
         <header className="kitchen-head">
           <h1 className="h1">The Kitchen</h1>
           <p className="muted">

@@ -1,10 +1,45 @@
 /* Uses the same tokens defined in Home.css (:root) */
+/* The Kitchen page — blurred background image with overlay */
+/* --- The Kitchen page: reliable blurred background via real DOM layers --- */
 .kitchen {
+  position: relative;       /* owns a stacking context for its children */
   min-height: 100dvh;
-  background: var(--bg, #1f2021);
   color: var(--text, #f3f4f6);
   padding: 20px 0 36px;
+  z-index: 0;
 }
+
+/* 1) Background photo layer (behind content) */
+.kitchen-bg {
+  position: fixed;          /* stays put on scroll; change to absolute if you prefer it to scroll */
+  inset: 0;
+  z-index: 0;               /* base layer */
+  background: url("../assets/kitchen-bg.jpg") center / cover no-repeat;
+  filter: blur(24px) saturate(1.1) brightness(0.9);
+  transform: scale(1.06);   /* avoids blur edge clipping */
+  will-change: filter, transform;
+  pointer-events: none;
+}
+
+/* 2) Gradient overlay above the photo, still behind content */
+.kitchen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55));
+  pointer-events: none;
+}
+
+/* 3) Ensure your real page content sits above both layers */
+.kitchen > *:not(.kitchen-bg):not(.kitchen-overlay) {
+  position: relative;
+  z-index: 2;
+}
+
+/* If your sticky header lives outside .kitchen, keep it above everything */
+.site-header { position: sticky; top: 0; z-index: 10; }
+
+
 
 .container {
   max-width: var(--container, 1120px);
@@ -143,3 +178,26 @@
 @media (max-width: 900px) {
   .recipe-body { grid-template-columns: 1fr; }
 }
+
+/* Ensure the page can host a pseudo-layer */
+.kitchen {
+  position: relative;
+  z-index: 0; /* create a stacking context above the bg */
+}
+
+/* Heavily blurred background layer behind all content */
+.kitchen::before {
+  content: "";
+  position: fixed;        /* stays put on scroll; use absolute if you prefer it to scroll */
+  inset: 0;
+  z-index: -1;            /* behind .kitchen content */
+  background: var(--kitchen-bg, #1f2021) center/cover no-repeat;
+  /* If you already set a background-image on .kitchen, mirror it here:
+     .kitchen::before { background-image: inherit; background-size: cover; background-position: center; } */
+
+  filter: blur(18px) saturate(1.1) brightness(0.9);
+  transform: scale(1.05); /* prevents blur edge clipping */
+  will-change: filter, transform;
+}
+
+
