@@ -19,7 +19,7 @@
   display: block;
   padding-top: 8px; /* keep consistent with Home */
   box-sizing: border-box;
-  color: var(--cb-text, #f3f4f6);
+  color: var(--cb-text, #2b3343);
 }
 
 /* Original .cb styles */
@@ -46,6 +46,7 @@
   margin: 0;
   font-size: 40px;
   line-height: 1.2;
+  color:#0b1220;
 }
 .cb-head__spacer {
   flex: 1;
