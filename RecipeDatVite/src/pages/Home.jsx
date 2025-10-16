@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";   // ← add
 import "./Home.css";
 
@@ -10,7 +10,21 @@ export default function Home() {
   // Wire these to your router/data later
   const goToProfile = () => {};
   const goToTheKitchen = () => navigate("/thekitchen");
-  const openRecipe = (id) => {};
+  const openRecipe = (id) => navigate(`/cookbook?id=${id}`);
+
+   // --- NEW: read the same recipes saved by Cookbook ---
+  const STORAGE_KEY = "recipedat.cookbook.v2";
+  const recipes = useMemo(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      // Only keep the first 6 to mirror your “six cards”
+      return Array.isArray(arr) ? arr.slice(0, 6) : [];
+    } catch {
+      return [];
+    }
+  }, []);
 
   const onSearch = (e) => {
     e.preventDefault();
@@ -70,26 +84,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Results grid */}
-      <section className="section pad-b">
-        <div className="container">
-          <div className="grid" aria-label="Recipe results">
-            {[1, 2, 3, 4, 5, 6].map((id) => (
-              <article key={id} className="card" tabIndex={0} onClick={() => openRecipe(id)} onKeyDown={(e) => (e.key === "Enter" ? openRecipe(id) : null)}>
-                <div className="card-media" aria-hidden="true" />
-                <div className="card-body">
-                  <h3 className="card-title">Sample Recipe {id}</h3>
-                  <p className="card-meta">25 min • 6 ingredients • Easy</p>
-                  <div className="tag-row">
-                    <span className="tag">#weeknight</span>
-                    <span className="tag">#quick</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+      <div className="grid" aria-label="Recipe results">
+  {recipes.map((r) => (
+    <article
+      key={r.id}
+      className="card"
+      tabIndex={0}
+      onClick={() => openRecipe(r.id)}
+      onKeyDown={(e) => (e.key === "Enter" ? openRecipe(r.id) : null)}
+      aria-label={`Open ${r.name}`}
+      role="button"
+    >
+      <div className="card-media" aria-hidden="true" />
+      <div className="card-body">
+        <h3 className="card-title">{r.name}</h3>
+        <p className="card-meta">
+          {(r.timeMinutes ?? 0)} min • {(r.ingredients?.length ?? 0)} ingredients • {r.category || "Uncategorized"}
+        </p>
+        <div className="tag-row">
+          <span className="tag">#{(r.category || "recipe").toLowerCase()}</span>
         </div>
-      </section>
+      </div>
+    </article>
+  ))}
+</div>
+
 
       {/* Footer */}
       <footer className="site-footer">

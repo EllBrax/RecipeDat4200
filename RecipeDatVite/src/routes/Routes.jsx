@@ -1,6 +1,6 @@
 import { Routes as RRDRoutes, Route } from "react-router-dom";
 import RootLayout from "../layouts/RootLayout";
-
+import Profile from "../pages/Profile";
 import Home from "../pages/Home";
 import About from "../pages/About";
 import Cookbook from "../pages/Cookbook";
@@ -14,6 +14,7 @@ export default function AppRoutes() {
         <Route path="/about" element={<About />} />
         <Route path="/cookbook" element={<Cookbook />} />
         <Route path="/thekitchen" element={<TheKitchen />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
     </RRDRoutes>
   );
