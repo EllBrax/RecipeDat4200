@@ -1,8 +1,8 @@
 // src/components/NavBar/NavBar.jsx
 import { Link, NavLink } from "react-router-dom";
 import "./NavBar.css";
-import logo from "../../assets/Logoandletter.png";  // updated filename
-
+import logo from "../../assets/Logoandletter.png";
+import ThemeToggle from "../ThemeToggle/ThemeToggle";
 
 export default function NavBar() {
   return (
@@ -21,8 +21,12 @@ export default function NavBar() {
         <Link to="/">RecipeDat</Link>
       </h1>
 
-      <div className="site-logo" aria-label="RecipeDat Logo">
-        <img src={logo} alt="RecipeDat logo" />
+      <div className="site-right">
+        <ThemeToggle />
+        <div className="site-logo" aria-label="RecipeDat Logo">
+          <img src={logo} alt="RecipeDat logo" />
+        </div>
+        
       </div>
     </header>
   );

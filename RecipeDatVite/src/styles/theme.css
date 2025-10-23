@@ -1,0 +1,115 @@
+/* src/styles/theme.css */
+
+/* Base tokens (used for both themes unless overridden) */
+:root {
+  --radius: 14px;
+  --radius-lg: 18px;
+  --container: 1120px;
+  --pad-x: 20px;
+
+  /* Typography */
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+  --font-size: 16px;
+
+  /* Common alpha overlays for text-on-image */
+  --overlay-strong: rgba(0,0,0,.45);
+  --overlay-soft: rgba(0,0,0,.20);
+
+  /* Brand */
+  --brand: #60a5fa;      /* blue for "Cook" */
+  --brand-gold: #b48a00; /* dark gold for "Dat" / top bar */
+  --brand-ink: #0b1220;
+
+  /* Borders & shadows */
+  --border: #3a3c3f;
+  --shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+/* ===== LIGHT THEME ===== */
+:root[data-theme="light"] {
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --elevated: #f1f2f4;
+  --text: #16181a;
+  --muted: #3b3f45;
+  --border: #dcdfe4;
+
+  /* Top bar */
+  --topbar-bg: #7a5c00;      /* same dark gold as dark mode */
+  --topbar-text: #fffdf5;
+
+  /* Links / accents readable on white */
+  --link: #0b6bcb;
+  --link-hover: #094f96;
+
+  /* For image sections */
+  --scrim: linear-gradient(0deg, rgba(255,255,255,0.72), rgba(255,255,255,0.72));
+}
+
+/* ===== DARK THEME ===== */
+:root[data-theme="dark"] {
+  --bg: #1f2021;
+  --surface: #27292b;
+  --elevated: #2d2f31;
+  --text: #f3f4f6;
+  --muted: #cbd5e1;
+
+  /* Top bar */
+  --topbar-bg: #7a5c00;   /* dark gold strip */
+  --topbar-text: #fffdf5;
+
+  /* Links / accents readable on dark */
+  --link: #7db7ff;
+  --link-hover: #cfe4ff;
+
+  /* For image sections */
+  --scrim: linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.55));
+}
+
+/* ===== Base app wiring ===== */
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--font-size);
+}
+
+/* Top bar (your gray strip -> themed) */
+.site-header {
+  background: var(--topbar-bg);
+  color: var(--topbar-text);
+}
+
+/* Links */
+a { color: var(--link); }
+a:hover { color: var(--link-hover); }
+
+/* Cards/panels */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+/* Utility: Make text readable over photos */
+.bg-with-scrim {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+}
+.bg-with-scrim::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--scrim);  /* auto swaps by theme */
+}
+.bg-with-scrim > * {
+  position: relative;
+}
+
+/* Optional: force high-contrast mode on tough areas */
+.force-contrast {
+  color: #111 !important;
+  background: #fff !important;
+}

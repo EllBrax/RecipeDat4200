@@ -26,13 +26,7 @@
   --pad-x: 16px;      /* side padding inside container */
 }
 
-/* Light mode overrides (keep your existing colors if you prefer) */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-}
+/* Light mode overrides removed - using theme.css system instead */
 
 /* ===== Base resets & layout ===== */
 * { box-sizing: border-box; }

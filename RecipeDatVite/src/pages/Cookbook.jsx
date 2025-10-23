@@ -229,10 +229,15 @@ function RecipeCard({ recipe, onOpen }) {
       }}
       {...hoverProps}
     >
-      <h3 className="cb-card__title">{recipe.name}</h3>
-      <div className="cb-pill">{recipe.category}</div>
-      <div className="cb-card__meta">
-        {recipe.timeMinutes} min • Serves {recipe.servings}
+      <div className="cb-card-media" aria-hidden="true" />
+      <div className="cb-card-body">
+        <h3 className="cb-card__title">{recipe.name}</h3>
+        <div className="cb-card__meta">
+          {recipe.timeMinutes} min • Serves {recipe.servings}
+        </div>
+        <div className="tag-row">
+          <span className="tag">#{recipe.category?.toLowerCase() || "recipe"}</span>
+        </div>
       </div>
     </article>
   );

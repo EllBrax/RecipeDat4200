@@ -1,61 +1,95 @@
-/* Uses the same tokens defined in Home.css (:root) */
-/* The Kitchen page — blurred background image with overlay */
-/* --- The Kitchen page: reliable blurred background via real DOM layers --- */
+/* ================================
+   The Kitchen .css (full-bleed bg + glass container, no extra card)
+   ================================ */
+
+/* Base wrapper */
 .kitchen {
-  position: relative;       /* owns a stacking context for its children */
+  position: relative;
   min-height: 100dvh;
-  color: var(--text, #f3f4f6);
+  color: var(--text);
   padding: 20px 0 36px;
   z-index: 0;
+  isolation: isolate; /* contain pseudo-layers */
 }
 
-/* 1) Background photo layer (behind content) */
-.kitchen-bg {
-  position: fixed;          /* stays put on scroll; change to absolute if you prefer it to scroll */
-  inset: 0;
-  z-index: 0;               /* base layer */
-  background: url("../assets/kitchen-bg.jpg") center / cover no-repeat;
-  filter: blur(24px) saturate(1.1) brightness(0.9);
-  transform: scale(1.06);   /* avoids blur edge clipping */
-  will-change: filter, transform;
-  pointer-events: none;
-}
-
-/* 2) Gradient overlay above the photo, still behind content */
-.kitchen-overlay {
+/* Full-viewport background (no blur, no scrim) */
+.kitchen::before {
+  content: "";
   position: fixed;
   inset: 0;
-  z-index: 1;
-  background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55));
-  pointer-events: none;
+  z-index: -1;                 /* sits behind everything on the page */
+  background-image: url("../assets/kitchen-bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  will-change: transform;
 }
 
-/* 3) Ensure your real page content sits above both layers */
-.kitchen > *:not(.kitchen-bg):not(.kitchen-overlay) {
+/* (We removed ::after — no dark overlay) */
+
+/* Page content sits above the background */
+.kitchen > * {
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }
 
-/* If your sticky header lives outside .kitchen, keep it above everything */
-.site-header { position: sticky; top: 0; z-index: 10; }
+/* Sticky header stays above everything */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
 
-
-
+/* -----------------------------------
+   Layout & Typography
+----------------------------------- */
 .container {
   max-width: var(--container, 1120px);
   margin: 0 auto;
   padding: 0 var(--pad-x, 20px);
+  overflow: visible; /* prevent child clipping */
 }
 
-.kitchen-head { margin-bottom: 18px; }
-.kitchen-head .muted { color: var(--muted, #cbd5e1); }
+.kitchen-head {
+  margin-bottom: 18px;
+}
 
-/* Workbench (input view) */
+.kitchen-head .muted {
+  color: var(--muted);
+}
+
+/* -----------------------------------
+   Workbench (input view)
+----------------------------------- */
 .workbench {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
+  overflow: visible; /* avoid clipped edges */
+  
+  /* Glass effect for workbench */
+  background: color-mix(in oklab, transparent 90%, black 10%);
+  backdrop-filter: blur(2px) saturate(110%);
+  -webkit-backdrop-filter: blur(2px) saturate(110%);
+  border-radius: var(--radius-lg, 18px);
+  box-shadow: 0 18px 46px rgba(0,0,0,.25);
+  padding: 20px;
 }
+
+/* Allow grid children to shrink to avoid "half cut" look */
+.workbench > * { min-width: 0; }
+
+/* Nuke any inner white/opaque panels some JSX might add */
+.workbench,
+.workbench > .panel,
+.workbench > .card,
+.workbench > .box,
+.workbench > .section {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 @media (max-width: 900px) {
   .workbench { grid-template-columns: 1fr; }
 }
@@ -70,18 +104,30 @@
   display: grid;
   place-items: center;
   padding: 16px;
-  transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  overflow: visible; /* keep buttons/icons visible near rounded edges */
 }
+
 .dropzone:hover { background: var(--elevated, #2d2f31); }
-.dropzone.dragging { border-color: var(--brand, #60a5fa); transform: translateY(-1px); }
+
+.dropzone.dragging {
+  border-color: var(--brand);
+  transform: translateY(-1px);
+}
+
 .dropzone.has-image { padding: 0; }
 
 .dropzone-inner { text-align: center; }
-.icon { font-size: 36px; margin-bottom: 8px; }
-.dz-title { margin: 0; font-weight: 700; }
-.dz-sub { margin: 0; color: var(--muted, #cbd5e1); }
 
+.icon { font-size: 36px; margin-bottom: 8px; }
+
+.dz-title { margin: 0; font-weight: 700; }
+
+.dz-sub { margin: 0; color: var(--muted); }
+
+/* Image preview */
 .preview-wrap { position: relative; width: 100%; }
+
 .preview {
   display: block;
   width: 100%;
@@ -90,36 +136,43 @@
   border-radius: var(--radius-lg, 18px);
   border: 1px solid var(--border, #3a3c3f);
 }
+
 .preview-remove {
   position: absolute;
-  top: 10px; right: 10px;
+  top: 10px;
+  right: 10px;
   height: 36px;
   padding: 0 10px;
   border-radius: 10px;
-  background: rgba(0,0,0,.35);
+  background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(4px);
   border: 1px solid var(--border, #3a3c3f);
 }
 
-/* Ingredients box */
+/* -----------------------------------
+   Ingredients box
+----------------------------------- */
 .ingredients .label {
   display: inline-block;
   margin-bottom: 8px;
-  color: var(--muted, #cbd5e1);
+  color: var(--muted);
 }
+
 .ingredients textarea {
   width: 100%;
   min-height: 280px;
   resize: vertical;
-  background: #1a1b1c;
-  color: var(--text, #f3f4f6);
-  border: 1px solid var(--border, #3a3c3f);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 14px;
   line-height: 1.6;
 }
-.ingredients textarea::placeholder { color: var(--muted, #cbd5e1); }
 
+.ingredients textarea::placeholder { color: var(--muted); }
+
+/* Actions */
 .actions {
   margin-top: 12px;
   display: flex;
@@ -127,24 +180,55 @@
   flex-wrap: wrap;
 }
 
-/* Buttons (rely on Home.css if present; include fallbacks) */
+/* -----------------------------------
+   Buttons
+----------------------------------- */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border, #3a3c3f);
-  background: var(--surface, #27292b); color: var(--text, #f3f4f6); cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #3a3c3f);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
 }
-.btn.primary { background: var(--brand, #60a5fa); color: var(--brand-ink, #0b1220); border-color: transparent; font-weight: 700; }
-.btn.ghost { background: transparent; }
-.btn:hover { filter: brightness(1.05); }
-.btn:disabled { opacity: .6; cursor: not-allowed; }
 
-/* Result view */
-.result { margin-top: 6px; }
+.btn.primary {
+  background: var(--brand);
+  color: var(--brand-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.btn.ghost { background: transparent; }
+
+.btn:hover { filter: brightness(1.05); }
+
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* -----------------------------------
+   Result view
+----------------------------------- */
+.result { 
+  margin-top: 6px;
+  
+  /* Glass effect for result */
+  background: color-mix(in oklab, transparent 90%, black 10%);
+  backdrop-filter: blur(2px) saturate(110%);
+  -webkit-backdrop-filter: blur(2px) saturate(110%);
+  border-radius: var(--radius-lg, 18px);
+  box-shadow: 0 18px 46px rgba(0,0,0,.25);
+  padding: 20px;
+}
+
 .recipe {
   border: 1px solid var(--border, #3a3c3f);
   background: var(--surface, #27292b);
   border-radius: var(--radius-lg, 18px);
-  box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,.35));
+  box-shadow: var(--shadow, 0 10px 30px rgba(0, 0, 0, 0.35));
   overflow: hidden;
 }
 
@@ -155,6 +239,7 @@
   padding: 18px;
   border-bottom: 1px solid var(--border, #3a3c3f);
 }
+
 .recipe-image {
   width: 100%;
   height: 220px;
@@ -162,6 +247,7 @@
   border-radius: 12px;
   border: 1px solid var(--border, #3a3c3f);
 }
+
 @media (max-width: 900px) {
   .recipe-head { grid-template-columns: 1fr; }
   .recipe-image { height: 200px; }
@@ -173,31 +259,15 @@
   gap: 16px;
   padding: 18px;
 }
+
 .recipe-body h3 { margin: 0 0 6px; }
-.recipe-body ul, .recipe-body ol { margin: 0; padding-left: 1.2rem; }
+
+.recipe-body ul,
+.recipe-body ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
 @media (max-width: 900px) {
   .recipe-body { grid-template-columns: 1fr; }
 }
-
-/* Ensure the page can host a pseudo-layer */
-.kitchen {
-  position: relative;
-  z-index: 0; /* create a stacking context above the bg */
-}
-
-/* Heavily blurred background layer behind all content */
-.kitchen::before {
-  content: "";
-  position: fixed;        /* stays put on scroll; use absolute if you prefer it to scroll */
-  inset: 0;
-  z-index: -1;            /* behind .kitchen content */
-  background: var(--kitchen-bg, #1f2021) center/cover no-repeat;
-  /* If you already set a background-image on .kitchen, mirror it here:
-     .kitchen::before { background-image: inherit; background-size: cover; background-position: center; } */
-
-  filter: blur(18px) saturate(1.1) brightness(0.9);
-  transform: scale(1.05); /* prevents blur edge clipping */
-  will-change: filter, transform;
-}
-
-
