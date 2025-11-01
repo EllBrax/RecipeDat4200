@@ -10,10 +10,11 @@ export default function NavBar() {
       <nav className="navbar">
         <ul className="nav-links">
           <li><NavLink to="/" end>Home</NavLink></li>
-          <li><NavLink to="/about">About</NavLink></li>
-          <li><NavLink to="/cookbook">Cookbook</NavLink></li>
           <li><NavLink to="/thekitchen">The Kitchen</NavLink></li>
+          <li><NavLink to="/cookbook">Cookbook</NavLink></li>
+          <li><NavLink to="/recents">Recents</NavLink></li>
           <li><NavLink to="/profile">Profile</NavLink></li>
+          <li><NavLink to="/about">About</NavLink></li>
         </ul>
       </nav>
 
@@ -23,6 +24,7 @@ export default function NavBar() {
 
       <div className="site-right">
         <ThemeToggle />
+        <Link to="/login" className="login-link">Login</Link>
         <div className="site-logo" aria-label="RecipeDat Logo">
           <img src={logo} alt="RecipeDat logo" />
         </div>

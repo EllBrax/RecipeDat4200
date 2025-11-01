@@ -194,6 +194,7 @@
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .btn.primary {
@@ -208,6 +209,21 @@
 .btn:hover { filter: brightness(1.05); }
 
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Pan flipping animation */
+.flip-pan {
+  display: inline-block;
+  animation: flipPan 1.5s ease-in-out infinite;
+}
+
+@keyframes flipPan {
+  0%, 100% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(180deg);
+  }
+}
 
 /* -----------------------------------
    Result view

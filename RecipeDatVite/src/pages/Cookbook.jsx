@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import "./Cookbook.css";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useRecipes } from "../contexts/RecipeContext";
+import "./Cookbook.css";
 
 /**
  * Cookbook.jsx (patched)
@@ -11,196 +13,9 @@ import { useLocation } from "react-router-dom";
  * - Small a11y: aria-haspopup on cards; focus modal on open
  */
 
-const SEED_RECIPES = [
-  {
-    id: "r1",
-    name: "Garlic Butter Shrimp",
-    category: "Seafood",
-    timeMinutes: 20,
-    servings: 4,
-    ingredients: [
-      "1 lb shrimp, peeled & deveined",
-      "4 tbsp unsalted butter",
-      "3 cloves garlic, minced",
-      "1 tbsp lemon juice",
-      "Salt & pepper to taste",
-      "Parsley for garnish"
-    ],
-    steps: [
-      "Pat shrimp dry; season with salt & pepper.",
-      "Melt butter; sauté garlic 30–45 sec.",
-      "Add shrimp; cook 1–2 min per side until pink.",
-      "Finish with lemon juice and parsley; serve warm."
-    ]
-  },
-  {
-    id: "r2",
-    name: "Classic Pancakes",
-    category: "Breakfast",
-    timeMinutes: 25,
-    servings: 3,
-    ingredients: [
-      "1 cup all-purpose flour",
-      "2 tbsp sugar",
-      "2 tsp baking powder",
-      "1/4 tsp salt",
-      "3/4 cup milk",
-      "1 egg",
-      "2 tbsp melted butter"
-    ],
-    steps: [
-      "Whisk dry ingredients.",
-      "Whisk wet; fold into dry just until combined.",
-      "Cook 1/4-cup scoops on greased skillet until bubbles set; flip.",
-      "Serve with butter & syrup."
-    ]
-  },
-  {
-    id: "r3",
-    name: "Simple Chicken Alfredo",
-    category: "Dinner",
-    timeMinutes: 30,
-    servings: 4,
-    ingredients: [
-      "12 oz fettuccine",
-      "2 chicken breasts, sliced",
-      "2 tbsp olive oil",
-      "3 tbsp butter",
-      "3 cloves garlic, minced",
-      "1 cup heavy cream",
-      "1 cup grated parmesan",
-      "Salt & pepper"
-    ],
-    steps: [
-      "Cook pasta to al dente; reserve 1/2 cup pasta water.",
-      "Sauté chicken in oil; season; set aside.",
-      "Melt butter; sauté garlic; add cream; simmer.",
-      "Whisk in parmesan; loosen with pasta water; toss with pasta & chicken."
-    ]
-  },
-  {
-    id: "r4",
-    name: "Classic Beef Tacos",
-    category: "Mexican",
-    timeMinutes: 25,
-    servings: 4,
-    ingredients: [
-      "1 lb ground beef",
-      "1 small onion, diced",
-      "2 cloves garlic, minced",
-      "2 tbsp taco seasoning",
-      "1/2 cup water",
-      "8 small corn or flour tortillas",
-      "Shredded lettuce, diced tomatoes, shredded cheese",
-      "Sour cream and salsa (optional)"
-    ],
-    steps: [
-      "Cook beef in skillet over medium heat, breaking up, until browned; drain excess fat.",
-      "Add onion and garlic; cook 2–3 minutes until softened.",
-      "Stir in taco seasoning and water; simmer 3–4 minutes until thickened.",
-      "Warm tortillas; assemble with beef and desired toppings. Serve immediately."
-    ],
-    notes: "For extra flavor, toast spices for 30 seconds before adding water. Great with pico de gallo."
-  },
-  {
-    id: "r5",
-    name: "Blueberry Buttermilk Pancakes",
-    category: "Breakfast",
-    timeMinutes: 20,
-    servings: 4,
-    ingredients: [
-      "1 1/2 cups all-purpose flour",
-      "2 tbsp sugar",
-      "1 tsp baking powder",
-      "1/2 tsp baking soda",
-      "1/2 tsp salt",
-      "1 1/4 cups buttermilk",
-      "1 large egg",
-      "2 tbsp melted butter (plus more for pan)",
-      "1 cup fresh or frozen blueberries"
-    ],
-    steps: [
-      "Whisk flour, sugar, baking powder, baking soda, and salt.",
-      "Whisk buttermilk, egg, and melted butter, then fold into dry mix until just combined.",
-      "Gently fold in blueberries.",
-      "Cook 1/4-cup scoops on a buttered skillet over medium heat, 2–3 minutes per side."
-    ],
-    notes: "Do not overmix; a few lumps are fine. Add lemon zest for brightness."
-  },
-  {
-    id: "r6",
-    name: "Hearty Lentil Soup",
-    category: "Vegetarian",
-    timeMinutes: 40,
-    servings: 6,
-    ingredients: [
-      "2 tbsp olive oil",
-      "1 onion, diced",
-      "2 carrots, diced",
-      "2 celery ribs, diced",
-      "3 cloves garlic, minced",
-      "1 1/2 cups brown or green lentils, rinsed",
-      "1 (14.5 oz) can diced tomatoes",
-      "6 cups vegetable broth",
-      "1 tsp ground cumin",
-      "1 tsp smoked paprika",
-      "Salt & pepper to taste",
-      "Juice of 1/2 lemon",
-      "Chopped parsley (optional)"
-    ],
-    steps: [
-      "Sauté onion, carrots, and celery in oil until softened, 5–6 minutes; add garlic for 30 seconds.",
-      "Stir in lentils, tomatoes, broth, cumin, and smoked paprika; bring to a boil.",
-      "Reduce heat; simmer 20–25 minutes until lentils are tender.",
-      "Season, finish with lemon juice, and garnish with parsley."
-    ],
-    notes: "Add a parmesan rind during simmering for extra depth (omit for vegan)."
-  }
-
-];
-
-const STORAGE_KEY = "recipedat.cookbook.v2";
-
-function loadRecipes() {
-  if (!isBrowser) return SEED_RECIPES;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return SEED_RECIPES;
-    const stored = JSON.parse(raw);
-    if (!Array.isArray(stored)) return SEED_RECIPES;
-    const byId = new Map(stored.map((r) => [r && r.id, r]).filter(([k]) => !!k));
-    SEED_RECIPES.forEach((seed) => {
-      if (seed && seed.id && !byId.has(seed.id)) byId.set(seed.id, seed);
-    });
-    return Array.from(byId.values());
-  } catch {
-    return SEED_RECIPES;
-  }
-}
 
 
-function useLocalRecipes() {
-  const [recipes, setRecipes] = useState(() => {
-    if (typeof window === "undefined") return SEED_RECIPES;
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : SEED_RECIPES;
-    } catch {
-      return SEED_RECIPES;
-    }
-  });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
-    } catch {
-      /* ignore */
-    }
-  }, [recipes]);
-
-  return [recipes, setRecipes];
-}
 
 function useHover() {
   const [hover, setHover] = useState(false);
@@ -288,7 +103,19 @@ function Modal({ open, onClose, title, children, actions, initialFocusRef }) {
 
 
 export default function Cookbook() {
-  const [recipes, setRecipes] = useLocalRecipes();
+  const { user, isAuthenticated } = useAuth();
+  const { 
+    recipes, 
+    loading, 
+    error, 
+    loadRecipes,
+    createRecipe, 
+    updateRecipe, 
+    deleteRecipe,
+    updateFilters,
+    filters 
+  } = useRecipes();
+  
   const [active, setActive] = useState(null); // recipe or null
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(null); // editable copy
@@ -308,44 +135,31 @@ export default function Cookbook() {
   }, [location.search, recipes]);
 
   // toolbar UI state
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState("name-asc");
+  const [query, setQuery] = useState(filters.search || "");
+  const [category, setCategory] = useState(filters.category || "All");
+  const [sort, setSort] = useState(filters.sortBy === "name" ? "name-asc" : "time-asc");
 
   const categories = useMemo(() => {
     const set = new Set(recipes.map((r) => (r.category || "").trim()).filter(Boolean));
     return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [recipes]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = recipes.filter((r) => {
-      const inCat = category === "All" || (r.category || "").trim() === category;
-      if (!q) return inCat;
-      const hay =
-        (r.name || "") +
-        " " +
-        (r.category || "") +
-        " " +
-        (r.ingredients || []).join(" ");
-      return inCat && hay.toLowerCase().includes(q);
-    });
+  // Don't automatically load recipes - let user trigger it manually
+  // useEffect(() => {
+  //   loadRecipes();
+  // }, []);
 
-    switch (sort) {
-      case "name-asc":
-        list = list.slice().sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case "time-asc":
-        list = list.slice().sort((a, b) => (a.timeMinutes || 0) - (b.timeMinutes || 0));
-        break;
-      case "time-desc":
-        list = list.slice().sort((a, b) => (b.timeMinutes || 0) - (a.timeMinutes || 0));
-        break;
-      default:
-        break;
-    }
-    return list;
-  }, [recipes, query, category, sort]);
+  // Update filters when local state changes
+  useEffect(() => {
+    updateFilters({
+      search: query,
+      category: category,
+      sortBy: sort.includes("name") ? "name" : "timeMinutes",
+      sortOrder: sort.includes("desc") ? "desc" : "asc"
+    });
+  }, [query, category, sort, updateFilters]);
+
+  const filtered = recipes; // Recipes are already filtered by the context
 
   // open/close modal
   const openRecipe = (r) => {
@@ -401,24 +215,27 @@ export default function Cookbook() {
   });
 
   // FIX #1: ensure active gets object WITH id after saving a brand-new recipe
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!draft) return;
     const clean = normalizeDraft(draft);
-    const finalObj = {
-      ...clean,
-      id: clean.id && clean.id.trim() ? clean.id : createId(clean.name)
-    };
-
-    setRecipes((prev) => {
-      const exists = prev.some((r) => r.id === finalObj.id);
-      return exists
-        ? prev.map((r) => (r.id === finalObj.id ? finalObj : r))
-        : [finalObj, ...prev];
-    });
-
-    setActive(finalObj); // now Delete button etc. work immediately
-    setIsEditing(false);
-    setDraft(null);
+    
+    try {
+      if (active && active._id) {
+        // Update existing recipe
+        const response = await updateRecipe(active._id, clean);
+        setActive(response.recipe);
+      } else {
+        // Create new recipe
+        const response = await createRecipe(clean);
+        setActive(response.recipe);
+      }
+      
+      setIsEditing(false);
+      setDraft(null);
+    } catch (error) {
+      console.error("Failed to save recipe:", error);
+      // Handle error - you might want to show a toast or alert
+    }
   };
 
   // add / delete
@@ -436,12 +253,18 @@ export default function Cookbook() {
     startEdit(fresh);
   };
 
-  const deleteRecipe = (rid) => {
+  const handleDeleteRecipe = async (rid) => {
     if (typeof window !== "undefined") {
       if (!window.confirm("Delete this recipe? This cannot be undone.")) return;
     }
-    setRecipes((prev) => prev.filter((r) => r.id !== rid));
-    closeModal();
+    
+    try {
+      await deleteRecipe(rid);
+      closeModal();
+    } catch (error) {
+      console.error("Failed to delete recipe:", error);
+      // Handle error - you might want to show a toast or alert
+    }
   };
 
   // header tags (shown in view mode)
@@ -454,6 +277,27 @@ export default function Cookbook() {
     ];
   }, [active]);
 
+  if (!isAuthenticated) {
+    return (
+      <main className="cookbook cb">
+        <div className="container">
+          <div className="cb-head">
+            <h2 className="cb-title">Cookbook</h2>
+            <div className="alert" style={{ 
+              background: "#fff3cd", 
+              border: "1px solid #ffeaa7", 
+              padding: "12px", 
+              borderRadius: "4px",
+              margin: "16px 0"
+            }}>
+              <strong>Please log in</strong> to view and manage your recipes.
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="cookbook cb">
       <div className="container">
@@ -462,7 +306,31 @@ export default function Cookbook() {
         <span className="cb-tag">{recipes.length} recipes</span>
         <div className="cb-head__spacer" />
         
-        <button className="cb-btn cb-btn--subtle" onClick={() => { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }} style={{marginRight:"8px"}} title="Reset recipes to default">Reset</button>
+        {error && (
+          <div className="alert" style={{ 
+            background: "#f8d7da", 
+            border: "1px solid #f5c6cb", 
+            padding: "12px", 
+            borderRadius: "4px",
+            margin: "16px 0",
+            color: "#721c24"
+          }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+        
+        <button 
+          onClick={() => loadRecipes()} 
+          disabled={loading}
+          className="cb-btn cb-btn--secondary"
+          style={{
+            margin: "8px 8px 8px 0",
+            opacity: loading ? 0.6 : 1
+          }}
+        >
+          {loading ? "Loading..." : "Load Recipes"}
+        </button>
+        
         <button className="cb-btn cb-btn--primary" onClick={addNew}>
           + Add Recipe
         </button>
@@ -526,10 +394,10 @@ export default function Cookbook() {
                   <button className="cb-btn cb-btn--primary" onClick={() => startEdit()}>
                     Edit
                   </button>
-                  {active?.id && (
+                  {active?._id && (
                     <button
                       className="cb-btn cb-btn--danger"
-                      onClick={() => deleteRecipe(active.id)}
+                      onClick={() => handleDeleteRecipe(active._id)}
                     >
                       Delete
                     </button>

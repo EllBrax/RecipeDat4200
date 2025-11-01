@@ -1,11 +1,16 @@
 // src/pages/TheKitchen.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useRecipes } from "../contexts/RecipeContext";
+import { aiAPI, recipesAPI } from "../services/api";
 import "./TheKitchen.css";
 import kitchenBg from "../assets/kitchen-bg.jpg"; // default background
 
 export default function TheKitchen() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { createRecipe } = useRecipes();
 
   // Input state
   const [imageFile, setImageFile] = useState(null);
@@ -18,6 +23,7 @@ export default function TheKitchen() {
 
   // Result state
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -67,54 +73,90 @@ export default function TheKitchen() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!isAuthenticated) {
+      setError("Please log in to generate recipes");
+      return;
+    }
+
     setIsSubmitting(true);
+    setError(null);
 
-    // ===== INTEGRATE YOUR AI MODEL HERE =====
-    // const form = new FormData();
-    // if (imageFile) form.append("image", imageFile);
-    // form.append("ingredients", ingredientsText);
-    // const response = await fetch("<your-endpoint>", { method: "POST", body: form });
-    // const data = await response.json();
-    // setResult(data);
-
-    // TEMP: demo result until AI is integrated
-    const fake = {
-      title: "AI-Generated Weeknight Pasta",
-      ingredients: ingredientsText
+    try {
+      // Prepare form data for AI API
+      const formData = new FormData();
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+      
+      const ingredients = ingredientsText
         .split("\n")
         .map((s) => s.trim())
-        .filter(Boolean),
-      steps: [
-        "Boil water and salt generously.",
-        "Sauté aromatics; add your main ingredient(s).",
-        "Fold in cooked pasta; adjust with starchy water.",
-        "Season to taste and serve warm.",
-      ],
-      note:
-        "Replace this with the model’s real output once integrated with your endpoint.",
-      imageUrl,
-    };
+        .filter(Boolean);
+      
+      formData.append("ingredients", JSON.stringify(ingredients));
+      
+      if (ingredientsText.trim()) {
+        formData.append("prompt", `Generate a recipe using these ingredients: ${ingredients.join(", ")}`);
+      }
 
-    setTimeout(() => {
-      setResult(fake);
+      // Call AI API
+      const response = await aiAPI.generateRecipe(formData);
+      setResult(response.recipe);
+    } catch (error) {
+      console.error("Recipe generation failed:", error);
+      setError(error.message || "Failed to generate recipe. Please try again.");
+    } finally {
       setIsSubmitting(false);
-    }, 300);
+    }
   };
 
-  const saveToCookbook = () => {
+  const saveToCookbook = async () => {
     try {
-      const key = "cookbook";
-      const existing = JSON.parse(localStorage.getItem(key) || "[]");
-      const entry = {
-        id: Date.now(),
-        ...result,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(key, JSON.stringify([entry, ...existing]));
-    } catch {
-      // no-op
+      if (!result) return;
+      
+      // Recipe is already saved to recents by AI endpoint
+      // Just move it to cookbook
+      if (result._id) {
+        await recipesAPI.saveToCookbook(result._id);
+        navigate("/cookbook");
+      } else {
+        // Fallback for older flow
+        const recipeData = {
+          name: result.title || result.name,
+          description: result.note || "AI-generated recipe",
+          category: result.category || "Other",
+          timeMinutes: result.timeMinutes || 30,
+          servings: result.servings || 4,
+          difficulty: result.difficulty || "Easy",
+          ingredients: result.ingredients.map(ingredient => ({
+            name: ingredient,
+            amount: "1",
+            unit: "item",
+            notes: ""
+          })),
+          steps: result.steps.map((step, index) => ({
+            stepNumber: index + 1,
+            instruction: step,
+            timeMinutes: Math.ceil((result.timeMinutes || 30) / result.steps.length)
+          })),
+          tags: result.tags || ["ai-generated"],
+          imageUrl: result.imageUrl,
+          isGenerated: true,
+          isPublic: false
+        };
+        await createRecipe(recipeData);
+        navigate("/cookbook");
+      }
+    } catch (error) {
+      console.error("Failed to save recipe:", error);
+      setError("Failed to save recipe. Please try again.");
     }
-    navigate("/cookbook");
+  };
+
+  const skipToRecents = () => {
+    // Recipe is already saved to recents, just navigate
+    navigate("/recents");
   };
 
   const backToKitchen = () => {
@@ -164,6 +206,29 @@ export default function TheKitchen() {
             <p className="muted">
               Drop in an image and list your ingredients. Your AI sous-chef will draft a recipe.
             </p>
+            {!isAuthenticated && (
+              <div className="alert" style={{ 
+                background: "#fff3cd", 
+                border: "1px solid #ffeaa7", 
+                padding: "12px", 
+                borderRadius: "4px",
+                margin: "16px 0"
+              }}>
+                <strong>Please log in</strong> to generate AI recipes and save them to your cookbook.
+              </div>
+            )}
+            {error && (
+              <div className="alert" style={{ 
+                background: "#f8d7da", 
+                border: "1px solid #f5c6cb", 
+                padding: "12px", 
+                borderRadius: "4px",
+                margin: "16px 0",
+                color: "#721c24"
+              }}>
+                <strong>Error:</strong> {error}
+              </div>
+            )}
           </header>
 
           {/* OUTPUT VIEW */}
@@ -205,6 +270,9 @@ export default function TheKitchen() {
                 <div className="actions">
                   <button className="btn primary" onClick={saveToCookbook}>
                     Save to Cookbook
+                  </button>
+                  <button className="btn secondary" onClick={skipToRecents}>
+                    Skip (Save to Recents)
                   </button>
                   <button className="btn ghost" onClick={backToKitchen}>
                     Back to The Kitchen
@@ -279,7 +347,11 @@ export default function TheKitchen() {
                     type="submit"
                     disabled={isSubmitting || (!imageFile && !ingredientsText.trim())}
                   >
-                    {isSubmitting ? "Generating..." : "Generate Recipe"}
+                    {isSubmitting ? (
+                      <>
+                        <span className="flip-pan">🍳</span> Generating...
+                      </>
+                    ) : "Generate Recipe"}
                   </button>
                   <button
                     className="btn ghost"

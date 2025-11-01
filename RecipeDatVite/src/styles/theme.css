@@ -16,9 +16,9 @@
   --overlay-soft: rgba(0,0,0,.20);
 
   /* Brand */
-  --brand: #60a5fa;      /* blue for "Cook" */
+  --brand: q#60a5fa;      /* blue for "Cook" */
   --brand-gold: #b48a00; /* dark gold for "Dat" / top bar */
-  --brand-ink: #0b1220;
+  
 
   /* Borders & shadows */
   --border: #3a3c3f;
@@ -27,43 +27,35 @@
 
 /* ===== LIGHT THEME ===== */
 :root[data-theme="light"] {
-  --bg: #f7f7f8;
-  --surface: #ffffff;
-  --elevated: #f1f2f4;
-  --text: #16181a;
-  --muted: #3b3f45;
-  --border: #dcdfe4;
+  --bg: #FFF9E9;            /* warm linen page background */
+  --surface: #FFFFFF;       /* primary card/panel */
+  --surface-2: #F2ECE4;     /* secondary bars: nav, filter row, modals header */
+  --surface-hover: #FFFCF6; /* card hover tint */
+  --brand: #bf5e35;         /* cozy gold accent */
+  --text: #2F2A26;          /* strong, warm text */
+  --muted: #6D6259;         /* secondary text */
+  --border: #DED6CB;        /* soft beige border */
+  --accent-hover: #F1C26B;  /* brighter honey */
+  --error: #D2553F;
 
-  /* Top bar */
-  --topbar-bg: #7a5c00;      /* same dark gold as dark mode */
-  --topbar-text: #fffdf5;
-
-  /* Links / accents readable on white */
-  --link: #0b6bcb;
-  --link-hover: #094f96;
-
-  /* For image sections */
-  --scrim: linear-gradient(0deg, rgba(255,255,255,0.72), rgba(255,255,255,0.72));
+  /* Elevation tokens */
+  --radius: 12px;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
+  --shadow-md: 0 8px 24px rgba(0,0,0,.10);
+  --ring: 0 0 0 3px rgba(197,139,44,.18);
 }
 
 /* ===== DARK THEME ===== */
 :root[data-theme="dark"] {
-  --bg: #1f2021;
-  --surface: #27292b;
-  --elevated: #2d2f31;
-  --text: #f3f4f6;
-  --muted: #cbd5e1;
-
-  /* Top bar */
-  --topbar-bg: #7a5c00;   /* dark gold strip */
-  --topbar-text: #fffdf5;
-
-  /* Links / accents readable on dark */
-  --link: #7db7ff;
-  --link-hover: #cfe4ff;
-
-  /* For image sections */
-  --scrim: linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.55));
+  --bg: #2e2a27;
+  --surface: #2A2420;
+  --brand: #bf5e35;
+  --text: #F7F3EE;
+  --muted: #C9B9A7;
+  --border: #3B332E;
+  --accent-hover: #FFD27F;
+  --error: #E86A33;
+  --brand-ink: #ffffff;
 }
 
 /* ===== Base app wiring ===== */
@@ -106,10 +98,4 @@ a:hover { color: var(--link-hover); }
 }
 .bg-with-scrim > * {
   position: relative;
-}
-
-/* Optional: force high-contrast mode on tough areas */
-.force-contrast {
-  color: #111 !important;
-  background: #fff !important;
 }

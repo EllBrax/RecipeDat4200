@@ -1,39 +1,28 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";   // ← add
+import { useRecipes } from "../contexts/RecipeContext";
 import "./Home.css";
 
 export default function Home() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState("All");
+  const { recipes, loadRecipes, loading } = useRecipes();
 
   // Wire these to your router/data later
   const goToProfile = () => {};
   const goToTheKitchen = () => navigate("/thekitchen");
   const openRecipe = (id) => navigate(`/cookbook?id=${id}`);
 
-   // --- NEW: read the most recently generated recipes from Cookbook ---
-  const STORAGE_KEY = "recipedat.cookbook.v2";
-  const recipes = useMemo(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(arr)) return [];
-      
-      // Sort by most recent (assuming recipes have savedAt or createdAt timestamps)
-      const sortedRecipes = arr.sort((a, b) => {
-        const aTime = new Date(a.savedAt || a.createdAt || 0).getTime();
-        const bTime = new Date(b.savedAt || b.createdAt || 0).getTime();
-        return bTime - aTime; // Most recent first
-      });
-      
-      // Show maximum of 8 most recently generated recipes
-      return sortedRecipes.slice(0, 8);
-    } catch {
-      return [];
-    }
-  }, []);
+  // Don't automatically load recipes - let user trigger it manually
+  // useEffect(() => {
+  //   loadRecipes();
+  // }, []);
+
+  // Get the most recent recipes (first 8)
+  const recentRecipes = useMemo(() => {
+    return recipes.slice(0, 8);
+  }, [recipes]);
 
   const onSearch = (e) => {
     e.preventDefault();
@@ -93,10 +82,22 @@ export default function Home() {
         <section className="section">
           <h2 className="h2">Your Recent Recipes</h2>
           <p className="muted">Your most recently generated and saved recipes</p>
+          
+          <button 
+            onClick={() => loadRecipes()} 
+            disabled={loading}
+            className="btn secondary"
+            style={{
+              margin: "8px 0",
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            {loading ? "Loading..." : "Load Recipes"}
+          </button>
         </section>
 
         <div className="grid" aria-label="Most recent recipes">
-    {recipes.map((r) => (
+    {recentRecipes.map((r) => (
       <article
         key={r.id}
         className="card"
