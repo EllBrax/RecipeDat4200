@@ -1,7 +1,7 @@
 /* Tokens */
 :root{
   --header-h: 64px;
-  --header-bg: #8a6d1a;     /* dark gold fallback */
+  --header-bg: #bf5e35;     /* dark gold fallback */
   --header-border: #5e4c12;
   --header-ink: #fff;
 }
