@@ -10,7 +10,7 @@ import kitchenBg from "../assets/kitchen-bg.jpg"; // default background
 export default function TheKitchen() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { createRecipe } = useRecipes();
+  const { createRecipe, loadRecipes, saveToCookbook: saveRecipeToCookbook } = useRecipes();
 
   // Input state
   const [imageFile, setImageFile] = useState(null);
@@ -102,9 +102,32 @@ export default function TheKitchen() {
 
       // Call AI API
       const response = await aiAPI.generateRecipe(formData);
+      console.log("AI API response:", response);
+      console.log("Recipe data:", response.recipe);
+      
+      // Ensure recipe has required fields
+      if (!response.recipe) {
+        throw new Error("No recipe data received from server");
+      }
+      
+      // Validate recipe structure
+      if (!response.recipe.ingredients || !Array.isArray(response.recipe.ingredients)) {
+        console.warn("Recipe missing or invalid ingredients:", response.recipe);
+        response.recipe.ingredients = [];
+      }
+      if (!response.recipe.steps || !Array.isArray(response.recipe.steps)) {
+        console.warn("Recipe missing or invalid steps:", response.recipe);
+        response.recipe.steps = [];
+      }
+      
       setResult(response.recipe);
     } catch (error) {
       console.error("Recipe generation failed:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
       setError(error.message || "Failed to generate recipe. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -115,10 +138,27 @@ export default function TheKitchen() {
     try {
       if (!result) return;
       
+      console.log("Saving recipe to cookbook:", result);
+      
       // Recipe is already saved to recents by AI endpoint
       // Just move it to cookbook
       if (result._id) {
-        await recipesAPI.saveToCookbook(result._id);
+        console.log("Recipe has _id, calling saveToCookbook API:", result._id);
+        
+        // Use context method if available, otherwise fall back to API
+        if (saveRecipeToCookbook) {
+          await saveRecipeToCookbook(result._id);
+        } else {
+          await recipesAPI.saveToCookbook(result._id);
+          // Refresh recipes list
+          if (loadRecipes) {
+            await loadRecipes();
+          }
+        }
+        
+        console.log("Recipe saved to cookbook successfully");
+        
+        // Navigate to cookbook
         navigate("/cookbook");
       } else {
         // Fallback for older flow
@@ -146,6 +186,16 @@ export default function TheKitchen() {
           isPublic: false
         };
         await createRecipe(recipeData);
+        
+        // Refresh recipes list before navigating
+        try {
+          if (loadRecipes) {
+            await loadRecipes();
+          }
+        } catch (err) {
+          console.warn("Failed to refresh recipes:", err);
+        }
+        
         navigate("/cookbook");
       }
     } catch (error) {
@@ -236,13 +286,17 @@ export default function TheKitchen() {
             <section className="result" aria-live="polite">
               <article className="recipe card">
                 <div className="recipe-head">
-                  <h2 className="h2">{result.title}</h2>
+                  <h2 className="h2">{result.title || result.name || 'AI-Generated Recipe'}</h2>
                   {result.imageUrl ? (
                     <img
                       className="recipe-image"
-                      src={result.imageUrl}
+                      src={result.imageUrl.startsWith('http') ? result.imageUrl : `http://localhost:3001${result.imageUrl}`}
                       alt="Selected or generated dish preview"
                       loading="lazy"
+                      onError={(e) => {
+                        console.error('Image failed to load:', result.imageUrl);
+                        e.target.style.display = 'none';
+                      }}
                     />
                   ) : null}
                 </div>
@@ -251,20 +305,30 @@ export default function TheKitchen() {
                   <div>
                     <h3>Ingredients</h3>
                     <ul>
-                      {result.ingredients.map((ing, i) => (
-                        <li key={i}>{ing}</li>
-                      ))}
+                      {result.ingredients && result.ingredients.map((ing, i) => {
+                        // Handle both string and object formats
+                        const ingredientText = typeof ing === 'string' 
+                          ? ing 
+                          : `${ing.amount || '1'} ${ing.unit || ''} ${ing.name || 'Ingredient'}`.trim();
+                        return <li key={i}>{ingredientText}</li>;
+                      })}
                     </ul>
                   </div>
                   <div>
                     <h3>Steps</h3>
                     <ol>
-                      {result.steps.map((step, i) => (
-                        <li key={i}>{step}</li>
-                      ))}
+                      {result.steps && result.steps.map((step, i) => {
+                        // Handle both string and object formats
+                        const stepText = typeof step === 'string' 
+                          ? step 
+                          : (step.instruction || step.step || `Step ${i + 1}`);
+                        return <li key={i}>{stepText}</li>;
+                      })}
                     </ol>
                   </div>
-                  {result.note && <p className="muted">{result.note}</p>}
+                  {(result.note || result.description) && (
+                    <p className="muted">{result.note || result.description}</p>
+                  )}
                 </div>
 
                 <div className="actions">

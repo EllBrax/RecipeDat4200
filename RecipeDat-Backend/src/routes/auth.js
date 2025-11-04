@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import Recipe from '../models/Recipe.js';
 import auth from '../middleware/auth.js';
 
 const router = express.Router();
@@ -166,6 +167,35 @@ router.put('/profile', auth, [
   } catch (error) {
     console.error('Profile update error:', error);
     res.status(500).json({ message: 'Server error during profile update' });
+  }
+});
+
+// @route   GET /api/auth/stats
+// @desc    Get user statistics (recipe count, favorites count)
+// @access  Private
+router.get('/stats', auth, async (req, res) => {
+  try {
+    // Count user's recipes in cookbook
+    const recipeCount = await Recipe.countDocuments({
+      user: req.userId,
+      $or: [
+        { isInCookbook: true },
+        { isInCookbook: { $exists: false } }
+      ]
+    });
+
+    // Count recipes where user is in favorites array
+    const favoritesCount = await Recipe.countDocuments({
+      favorites: req.userId
+    });
+
+    res.json({
+      recipes: recipeCount,
+      favorites: favoritesCount
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

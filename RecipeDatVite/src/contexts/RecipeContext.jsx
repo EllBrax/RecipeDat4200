@@ -113,6 +113,27 @@ export const RecipeProvider = ({ children }) => {
     }
   };
 
+  const saveToCookbook = async (id) => {
+    try {
+      setError(null);
+      const response = await recipesAPI.saveToCookbook(id);
+      // Update the recipe in the list to reflect the cookbook status
+      setRecipes(prev => 
+        prev.map(recipe => 
+          recipe._id === id 
+            ? { ...recipe, isInCookbook: true, isInRecents: false, expiresAt: null }
+            : recipe
+        )
+      );
+      // Also reload recipes to ensure we have the latest data
+      await loadRecipes();
+      return response;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
   const updateFilters = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
     // Don't automatically reload - let components handle it manually
@@ -138,6 +159,7 @@ export const RecipeProvider = ({ children }) => {
     deleteRecipe,
     addToFavorites,
     removeFromFavorites,
+    saveToCookbook,
     updateFilters,
     clearFilters,
   };

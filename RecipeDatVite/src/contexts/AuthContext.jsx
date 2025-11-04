@@ -22,7 +22,8 @@ export const AuthProvider = ({ children }) => {
       try {
         if (authAPI.isAuthenticated()) {
           const userData = await authAPI.getCurrentUser();
-          setUser(userData.user);
+          // Backend returns user directly, not wrapped in {user}
+          setUser(userData);
         }
       } catch (error) {
         console.error('Auth check failed:', error);

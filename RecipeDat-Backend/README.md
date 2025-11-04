@@ -95,9 +95,10 @@ The API will be available at `http://localhost:3001`
 
 ### AI Generation
 - `POST /api/ai/generate-recipe` - Generate recipe from image/ingredients
-  - Uses Qwen2.5-VL-3B-Instruct vision-language model from Hugging Face
+  - Uses DeepSeek VL 1.3B Chat vision-language model from Hugging Face
   - Supports image upload + optional ingredients list
   - Automatically falls back to mock generation if Python dependencies unavailable
+  - Uses transformers pipeline API for simple and reliable model loading
 - `GET /api/ai/suggestions` - Get ingredient suggestions
 
 ### Health Check

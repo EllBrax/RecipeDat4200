@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Register.css';
 
 export default function Register() {
+  const { register, loading, error: authError } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -24,45 +25,28 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password
-        }),
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store token and user data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Redirect to profile
-        navigate('/profile');
-      } else {
-        setError(data.message || 'Registration failed');
-      }
+      navigate('/');
     } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setError(err.message || authError || 'Registration failed. Please try again.');
     }
   };
 
@@ -75,9 +59,9 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="register-form">
-          {error && (
+          {(error || authError) && (
             <div className="error-message">
-              {error}
+              {error || authError}
             </div>
           )}
 
@@ -91,7 +75,7 @@ export default function Register() {
               onChange={handleChange}
               required
               placeholder="Enter your full name"
-              disabled={isLoading}
+              disabled={loading}
             />
           </div>
 
@@ -105,7 +89,7 @@ export default function Register() {
               onChange={handleChange}
               required
               placeholder="Enter your email"
-              disabled={isLoading}
+              disabled={loading}
             />
           </div>
 
@@ -119,7 +103,7 @@ export default function Register() {
               onChange={handleChange}
               required
               placeholder="Create a password"
-              disabled={isLoading}
+              disabled={loading}
               minLength="6"
             />
           </div>
@@ -134,16 +118,16 @@ export default function Register() {
               onChange={handleChange}
               required
               placeholder="Confirm your password"
-              disabled={isLoading}
+              disabled={loading}
             />
           </div>
 
           <button 
             type="submit" 
             className="register-button"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+              disabled={loading}
+            >
+              {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 

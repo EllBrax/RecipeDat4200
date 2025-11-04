@@ -66,3 +66,4 @@ console.log('3. Start development server: npm run dev');
 console.log('\nAPI will be available at: http://localhost:3001');
 console.log('Health check: http://localhost:3001/api/health');
 
+

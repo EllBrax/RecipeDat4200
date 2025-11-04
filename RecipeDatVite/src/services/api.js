@@ -104,6 +104,11 @@ export const authAPI = {
   isAuthenticated: () => {
     return !!getAuthToken();
   },
+
+  // Get user statistics
+  getStats: async () => {
+    return await apiRequest('/auth/stats');
+  },
 };
 
 // Recipes API
@@ -168,6 +173,11 @@ export const recipesAPI = {
       method: 'POST',
     });
   },
+
+  // Get favorite recipes
+  getFavoriteRecipes: async () => {
+    return await apiRequest('/recipes/favorites');
+  },
 };
 
 // AI API
@@ -184,12 +194,14 @@ export const aiAPI = {
       body: formData,
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      console.error('AI API error response:', data);
+      throw new Error(data.message || data.error || `HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    return data;
   },
 
   // Get ingredient suggestions

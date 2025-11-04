@@ -144,10 +144,10 @@ export default function Cookbook() {
     return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [recipes]);
 
-  // Don't automatically load recipes - let user trigger it manually
-  // useEffect(() => {
-  //   loadRecipes();
-  // }, []);
+  // Load recipes when component mounts or when filters change
+  useEffect(() => {
+    loadRecipes();
+  }, [loadRecipes]);
 
   // Update filters when local state changes
   useEffect(() => {
@@ -430,16 +430,24 @@ export default function Cookbook() {
 
             <h3 className="cb-h2">Ingredients</h3>
             <ul className="cb-list">
-              {(active.ingredients || []).map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
+              {(active.ingredients || []).map((ing, i) => {
+                // Handle both string and object formats
+                const displayText = typeof ing === 'string' 
+                  ? ing 
+                  : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}${ing.notes ? ` (${ing.notes})` : ''}`.trim();
+                return <li key={i}>{displayText}</li>;
+              })}
             </ul>
 
             <h3 className="cb-h2">Steps</h3>
             <ol className="cb-list cb-list--ol">
-              {(active.steps || []).map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
+              {(active.steps || []).map((step, i) => {
+                // Handle both string and object formats
+                const displayText = typeof step === 'string' 
+                  ? step 
+                  : step.instruction || '';
+                return <li key={i}>{displayText}</li>;
+              })}
             </ol>
           </div>
         )}

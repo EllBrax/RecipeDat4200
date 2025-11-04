@@ -12,8 +12,16 @@ function useHover() {
   return [hover, props];
 }
 
-function RecipeCard({ recipe, onOpen }) {
+function RecipeCard({ recipe, onOpen, onDelete }) {
   const [hover, hoverProps] = useHover();
+  
+  const handleDeleteClick = (e) => {
+    e.stopPropagation(); // Prevent opening the recipe modal
+    if (window.confirm(`Delete "${recipe.name}"? This cannot be undone.`)) {
+      onDelete(recipe._id);
+    }
+  };
+  
   return (
     <article
       className={`cb-card${hover ? " is-hover" : ""}`}
@@ -29,6 +37,7 @@ function RecipeCard({ recipe, onOpen }) {
         }
       }}
       {...hoverProps}
+      style={{ position: "relative" }}
     >
       <div className="cb-card-media" aria-hidden="true" />
       <div className="cb-card-body">
@@ -43,6 +52,33 @@ function RecipeCard({ recipe, onOpen }) {
           ))}
         </div>
       </div>
+      <button
+        className="cb-btn cb-btn--icon"
+        onClick={handleDeleteClick}
+        aria-label={`Delete ${recipe.name}`}
+        title="Delete recipe"
+        style={{
+          position: "absolute",
+          top: "8px",
+          right: "8px",
+          backgroundColor: "rgba(220, 53, 69, 0.9)",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          padding: "4px 8px",
+          fontSize: "12px",
+          cursor: "pointer",
+          zIndex: 10
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(220, 53, 69, 1)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(220, 53, 69, 0.9)";
+        }}
+      >
+        ✕
+      </button>
     </article>
   );
 }
@@ -134,6 +170,21 @@ export default function Recents() {
     }
   };
 
+  const handleDeleteRecipe = async (id) => {
+    if (!window.confirm("Delete this recipe? This cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      await recipesAPI.deleteRecipe(id);
+      await loadRecents(); // Reload to remove deleted recipe
+      closeModal();
+    } catch (error) {
+      console.error("Failed to delete recipe:", error);
+      setError("Failed to delete recipe. Please try again.");
+    }
+  };
+
   const headerTags = active ? [
     `${active.timeMinutes || 0} min`,
     `Serves ${active.servings || 1}`,
@@ -195,7 +246,14 @@ export default function Recents() {
           </button>
         </div>
 
-        <div style={{ margin: "16px 0", padding: "12px", background: "#e3f2fd", borderRadius: "4px" }}>
+        <div style={{ 
+          margin: "16px 0", 
+          padding: "12px", 
+          background: "var(--cb-elevated, rgba(255, 255, 255, 0.05))",
+          border: "1px solid var(--cb-border, rgba(255, 255, 255, 0.1))",
+          borderRadius: "4px",
+          color: "var(--cb-text, inherit)"
+        }}>
           <p style={{ margin: 0 }}>
             <strong>Note:</strong> These recipes expire in 7 days and will be automatically removed. 
             Save recipes you want to keep to your cookbook.
@@ -204,7 +262,12 @@ export default function Recents() {
 
         <section className="cb-grid">
           {recipes.map((r) => (
-            <RecipeCard key={r._id || r.id} recipe={r} onOpen={openRecipe} />
+            <RecipeCard 
+              key={r._id || r.id} 
+              recipe={r} 
+              onOpen={openRecipe}
+              onDelete={handleDeleteRecipe}
+            />
           ))}
           {recipes.length === 0 && !loading && (
             <div className="cb-empty">No recent recipes. Generate some in The Kitchen!</div>
@@ -228,6 +291,17 @@ export default function Recents() {
                   onClick={() => handleSaveToCookbook(active._id)}
                 >
                   Save to Cookbook
+                </button>
+                <button 
+                  className="cb-btn cb-btn--danger" 
+                  onClick={() => handleDeleteRecipe(active._id)}
+                  style={{
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none"
+                  }}
+                >
+                  Delete
                 </button>
                 <button className="cb-btn" onClick={closeModal}>
                   Close

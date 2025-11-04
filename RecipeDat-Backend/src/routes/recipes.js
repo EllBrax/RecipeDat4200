@@ -309,5 +309,27 @@ router.post('/clean-expired', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/recipes/favorites
+// @desc    Get user's favorite recipes
+// @access  Private
+router.get('/favorites', auth, async (req, res) => {
+  try {
+    const recipes = await Recipe.find({
+      favorites: req.userId
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('user', 'name email');
+
+    res.json({
+      recipes,
+      count: recipes.length
+    });
+  } catch (error) {
+    console.error('Get favorites error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;
 
