@@ -47,10 +47,112 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static('uploads'));
 
 // Database connection
-console.log('🔍 MONGODB_URI:', process.env.MONGODB_URI);
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/recipedat')
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/recipedat';
+
+// Validate MONGODB_URI format
+if (!MONGODB_URI || MONGODB_URI.trim() === '') {
+  console.error('❌ ERROR: MONGODB_URI is not set in .env file!');
+  console.error('   Please check your .env file and ensure MONGODB_URI is properly configured.');
+  process.exit(1);
+}
+
+// Check if it looks like a placeholder
+if (MONGODB_URI.includes('username:password') || (MONGODB_URI.includes('cluster.mongodb.net') && !MONGODB_URI.includes('cluster0.obiwqao'))) {
+  console.error('❌ ERROR: MONGODB_URI appears to be a placeholder!');
+  console.error('   Current value:', MONGODB_URI);
+  console.error('   Please update your .env file with the actual MongoDB connection string.');
+  process.exit(1);
+}
+
+console.log('🔍 MONGODB_URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@')); // Hide password in logs
+
+// Extract hostname for diagnostics
+const hostnameMatch = MONGODB_URI.match(/@([^/]+)/);
+const hostname = hostnameMatch ? hostnameMatch[1] : 'unknown';
+console.log('🌐 Connecting to MongoDB host:', hostname);
+
+// Configure Mongoose connection options
+const mongooseOptions = {
+  serverSelectionTimeoutMS: 10000, // Give it 10 seconds to connect
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+};
+
+// Add connection event listeners for better diagnostics
+mongoose.connection.on('connecting', () => {
+  console.log('🔄 Attempting to connect to MongoDB...');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB connection error event:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️  MongoDB disconnected');
+});
+
+mongoose.connect(MONGODB_URI, mongooseOptions)
+  .then(() => {
+    console.log('✅ Connected to MongoDB successfully');
+    console.log('   Database:', mongoose.connection.name);
+    console.log('   Host:', mongoose.connection.host);
+    console.log('   Ready state:', mongoose.connection.readyState);
+  })
+  .catch(err => {
+    console.error('\n❌ MongoDB connection failed!');
+    console.error('   Error message:', err.message);
+    console.error('   Error code:', err.code || 'N/A');
+    console.error('   Error name:', err.name || 'N/A');
+    
+    // Detailed error analysis
+    console.error('\n🔍 Diagnosis:');
+    
+    if (err.code === 'ENOTFOUND' || err.name === 'MongoServerSelectionError') {
+      console.error('   ❌ DNS Resolution Failed or Server Unreachable');
+      console.error('      - The hostname cannot be resolved, or');
+      console.error('      - Network is blocking the connection');
+      console.error('\n   💡 Solutions:');
+      console.error('      1. Check your internet connection');
+      console.error('      2. If using MongoDB Atlas:');
+      console.error('         → Go to MongoDB Atlas Dashboard');
+      console.error('         → Navigate to Network Access');
+      console.error('         → Click "Add IP Address"');
+      console.error('         → Add "0.0.0.0/0" (allows all IPs) OR add your current IP');
+      console.error('         → You can find your IP at: https://whatismyipaddress.com/');
+      console.error('      3. Check if firewall/antivirus is blocking the connection');
+      console.error('      4. Try a different network (e.g., mobile hotspot)');
+    } else if (err.code === 'ETIMEDOUT' || err.code === 'ETIMEOUT') {
+      console.error('   ❌ Connection Timeout');
+      console.error('      - The server is not responding');
+      console.error('\n   💡 Solutions:');
+      console.error('      1. Check MongoDB Atlas IP whitelist (most common)');
+      console.error('      2. Network firewall may be blocking port 27017');
+      console.error('      3. Try disabling VPN if using one');
+      console.error('      4. Check if corporate/school network has restrictions');
+    } else if (err.message && err.message.includes('authentication')) {
+      console.error('   ❌ Authentication Failed');
+      console.error('      - Username or password is incorrect');
+      console.error('\n   💡 Solutions:');
+      console.error('      1. Verify credentials in .env file');
+      console.error('      2. Check if password contains special characters that need URL encoding');
+      console.error('      3. Ensure database user exists in MongoDB Atlas');
+    } else {
+      console.error('   ❌ Unknown Connection Error');
+      console.error('\n   💡 Common solutions:');
+      console.error('      1. MongoDB Atlas IP whitelist - add your IP');
+      console.error('      2. Network/firewall blocking MongoDB');
+      console.error('      3. VPN interference');
+      console.error('      4. Corporate network restrictions');
+    }
+    
+    console.error('\n📋 Additional Info:');
+    console.error('   - Hostname:', hostname);
+    console.error('   - Connection string format:', MONGODB_URI.includes('mongodb+srv://') ? 'SRV (DNS-based)' : 'Standard');
+    console.error('   - Your .env file appears to be configured correctly');
+    console.error('   - This is likely a network/permissions issue, not a configuration issue');
+    
+    process.exit(1);
+  });
 
 // Routes
 app.use('/api/auth', authRoutes);

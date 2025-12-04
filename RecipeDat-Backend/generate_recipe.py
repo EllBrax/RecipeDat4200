@@ -87,33 +87,25 @@ def generate_recipe(image_path, ingredients_list):
         image = Image.open(image_path).convert('RGB')
         
         # Prepare ingredients text
-        ingredients_text = ", ".join(ingredients_list) if ingredients_list else "available ingredients"
+        ingredients_text = ", ".join(ingredients_list) if ingredients_list else ""
         
         # Create the prompt for Qwen2-VL
         prompt_text = f"""Generate a detailed recipe based on this image of food. Use these ingredients if applicable: {ingredients_text}.
 
-IMPORTANT: You MUST start your response with a recipe title/name on the first line.
-
 Please provide:
-1. A creative, descriptive recipe name (REQUIRED - must be the first line or labeled clearly)
+1. A creative, descriptive recipe name
 2. Category (Breakfast, Lunch, Dinner, Dessert, Snack, Beverage, Appetizer, Side, or Other)
 3. Difficulty level (Easy, Medium, or Hard)
 4. Estimated cooking time in minutes
 5. Number of servings
 6. List of ingredients with quantities (format as: "amount unit ingredient name")
 7. Step-by-step cooking instructions (minimum 5 steps, numbered)
-8. At least 3-5 relevant tags based on the ACTUAL recipe content:
-   - Cuisine type (e.g., Italian, Mexican, Asian, American)
-   - Cooking method used (e.g., grilled, baked, stir-fried, roasted, steamed)
-   - Key ingredients or flavors (e.g., chicken, vegetarian, spicy, sweet)
-   - Dietary info (e.g., gluten-free, dairy-free, vegan, keto, low-carb)
-   - Meal type (e.g., comfort-food, healthy, quick-meal, special-occasion)
-   IMPORTANT: Only include tags that accurately describe what you see in the image and what the recipe actually contains. Do not make up tags.
+8. At least 3-5 relevant tags based on the recipe content
 9. Any helpful notes or tips
 
-Format your response EXACTLY as follows:
+Format your response as follows:
 
-Recipe Name: [creative descriptive name here]
+Recipe Name: [recipe name here]
 Category: [category]
 Difficulty: [difficulty]
 Time: [time] minutes
@@ -131,13 +123,8 @@ Instructions:
 ...
 
 Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
-Make sure tags accurately reflect: the cuisine type, cooking method, main ingredients, and dietary characteristics visible in the image.
 
-Notes: [any helpful notes or tips]
-
-Remember: 
-- The recipe name/title is REQUIRED and must be clearly labeled or be the first line of your response.
-- Tags must be based on what you actually see in the image and what the recipe contains, not generic or made-up tags."""
+Notes: [any helpful notes or tips]"""
 
         # Prepare messages in the format Qwen2-VL expects
         # Note: process_vision_info expects image paths or PIL Images in the messages
@@ -180,7 +167,7 @@ Remember:
         with torch.no_grad():
             generated_ids = model.generate(
                 **inputs,
-                max_new_tokens=512,
+                max_new_tokens=1024,  # Increased to allow for complete, full steps
                 do_sample=False,  # Use greedy decoding for more consistent results
                 temperature=0.7,
                 top_p=0.9
@@ -200,7 +187,8 @@ Remember:
         print(f"Generated recipe in {elapsed:.1f} seconds ({elapsed/60:.1f} minutes)", file=sys.stderr)
         
         print(f"Generated output length: {len(output_text)} characters", file=sys.stderr)
-        print(f"Generated output preview: {output_text[:200]}...", file=sys.stderr)
+        print(f"Generated output preview: {output_text[:500]}...", file=sys.stderr)
+        print(f"Full generated output:\n{output_text}", file=sys.stderr)
         
         # Parse the output to extract structured recipe data
         recipe = parse_recipe_output(output_text, ingredients_list)
@@ -241,46 +229,46 @@ def parse_recipe_output(output_text, ingredients_list):
         "tags": ["ai-generated"]
     }
     
-    # Extract title - try multiple patterns
+    # Extract title - prioritize first line as title (new format)
     title_extracted = False
     
-    # Method 1: Look for "Recipe Name:" pattern
-    for i, line in enumerate(lines[:15]):
+    # Method 1: Use first non-empty line as title (new format has title first)
+    for i, line in enumerate(lines[:10]):
         if not line.strip():
             continue
-        line_lower = line.lower()
-        if "recipe name:" in line_lower or "title:" in line_lower:
-            # Extract text after the colon
-            parts = line.split(':', 1)
-            if len(parts) > 1:
-                title = parts[1].strip().strip('"').strip("'").strip()
-                if title:
-                    recipe["title"] = title
-                    title_extracted = True
-                    break
-            # Or check next line
-            elif i + 1 < len(lines):
-                title = lines[i + 1].strip().strip('"').strip("'").strip()
-                if title and not any(keyword in title.lower() for keyword in ["category:", "difficulty:", "time:", "servings:", "ingredients:"]):
-                    recipe["title"] = title
-                    title_extracted = True
-                    break
+        line_lower = line.lower().strip()
+        # Skip if it looks like a section header
+        if any(keyword in line_lower for keyword in ["ingredients:", "steps:", "instructions:", "tags:", "category:", "difficulty:", "time:", "servings:"]):
+            continue
+        # Skip if it's just a number or very short
+        if len(line.strip()) < 3:
+            continue
+        # Use this as title
+        recipe["title"] = line.strip().strip('"').strip("'").strip()
+        title_extracted = True
+        break
     
-    # Method 2: If no title found, use first non-empty line that doesn't look like a section header
+    # Method 2: Look for "Recipe Name:" pattern (fallback for old format)
     if not title_extracted:
-        for i, line in enumerate(lines[:10]):
+        for i, line in enumerate(lines[:15]):
             if not line.strip():
                 continue
-            line_lower = line.lower().strip()
-            # Skip if it looks like a section header
-            if any(keyword in line_lower for keyword in ["category:", "difficulty:", "time:", "servings:", "ingredients:", "instructions:", "steps:", "tags:", "notes:"]):
-                continue
-            # Skip if it's just a number or very short
-            if len(line.strip()) < 3:
-                continue
-            # Use this as title
-            recipe["title"] = line.strip().strip('"').strip("'").strip()
-            title_extracted = True
+            line_lower = line.lower()
+            if "recipe name:" in line_lower or "title:" in line_lower:
+                # Extract text after the colon
+                parts = line.split(':', 1)
+                if len(parts) > 1:
+                    title = parts[1].strip().strip('"').strip("'").strip()
+                    if title:
+                        recipe["title"] = title
+                        title_extracted = True
+                        break
+                # Or check next line
+                elif i + 1 < len(lines):
+                    title = lines[i + 1].strip().strip('"').strip("'").strip()
+                    if title and not any(keyword in title.lower() for keyword in ["category:", "difficulty:", "time:", "servings:", "ingredients:"]):
+                        recipe["title"] = title
+                        title_extracted = True
             break
     
     # Method 3: If still no title, generate one from category or default
@@ -299,7 +287,7 @@ def parse_recipe_output(output_text, ingredients_list):
         
         # Check if we've moved to another section
         if ingredient_section:
-            if any(keyword in line_lower for keyword in ["steps:", "instructions:", "directions:", "category:", "difficulty:"]):
+            if any(keyword in line_lower for keyword in ["steps:", "instructions:", "directions:", "tags:", "category:", "difficulty:"]):
                 break
         
         # Extract ingredients
@@ -319,17 +307,19 @@ def parse_recipe_output(output_text, ingredients_list):
     # Ensure we have at least some steps
     step_section = False
     step_num = 1
+    seen_steps = set()  # Track seen steps to prevent duplicates
+    
     for line in lines:
         line_lower = line.lower()
         
-        # Check if we're in the steps section
+        # Check if we're in the steps section (prioritize "Steps:" as it's the new format)
         if any(keyword in line_lower for keyword in ["steps:", "instructions:", "directions:"]):
             step_section = True
             continue
         
         # Stop at other sections
         if step_section:
-            if any(keyword in line_lower for keyword in ["notes:", "tips:", "serving:", "cooking time:"]):
+            if any(keyword in line_lower for keyword in ["notes:", "tips:", "serving:", "cooking time:", "tags:"]):
                 break
         
         # Extract steps
@@ -342,9 +332,48 @@ def parse_recipe_output(output_text, ingredients_list):
             clean_line = re.sub(r'^\(\d+\)\s*', '', clean_line)  # Remove "(1) "
             clean_line = clean_line.lstrip('-').lstrip('*').lstrip('•').strip()
             
+            # Only add if the step is meaningful and not a duplicate
             if clean_line and len(clean_line) > 5:
-                recipe["steps"].append(clean_line)
+                # Create a normalized version for duplicate detection (case-insensitive, first 50 chars)
+                normalized = clean_line.lower().strip()[:50]
+                
+                # Check if this step is too similar to existing steps (prevent duplicates)
+                is_duplicate = False
+                for seen in seen_steps:
+                    # Check if normalized versions are very similar (same start or contained within)
+                    if normalized in seen or seen in normalized or normalized == seen:
+                        is_duplicate = True
+                        break
+                    # Also check if they're very similar in length and content
+                    if abs(len(normalized) - len(seen)) < 10:
+                        # Simple similarity check - if first 30 chars match, likely duplicate
+                        if normalized[:30] == seen[:30]:
+                            is_duplicate = True
+                            break
+                
+                if not is_duplicate:
+                    recipe["steps"].append(clean_line)
+                    seen_steps.add(normalized)
                 step_num += 1
+    
+    # Remove any remaining duplicates (final cleanup)
+    # Use a more sophisticated deduplication that preserves order
+    unique_steps = []
+    seen_unique = set()
+    for step in recipe["steps"]:
+        step_lower = step.lower().strip()
+        # Check if this step is substantially different from ones we've seen
+        is_unique = True
+        for seen in seen_unique:
+            # Check for exact matches or very similar content
+            if step_lower == seen or (len(step_lower) > 20 and step_lower[:30] == seen[:30]):
+                is_unique = False
+                break
+        if is_unique:
+            unique_steps.append(step)
+            seen_unique.add(step_lower[:50])  # Store first 50 chars for comparison
+    
+    recipe["steps"] = unique_steps
     
     # Ensure we have at least one step (fallback)
     # Steps should be strings (will be converted to objects by Node.js normalization)

@@ -24,11 +24,9 @@ export default function NavBar() {
 
       <div className="site-right">
         <ThemeToggle />
-        <Link to="/login" className="login-link">Login</Link>
         <div className="site-logo" aria-label="RecipeDat Logo">
           <img src={logo} alt="RecipeDat logo" />
         </div>
-        
       </div>
     </header>
   );

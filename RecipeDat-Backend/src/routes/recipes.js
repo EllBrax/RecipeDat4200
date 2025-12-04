@@ -236,17 +236,54 @@ router.delete('/:id/favorite', auth, async (req, res) => {
 });
 
 // @route   GET /api/recipes/recents/list
-// @desc    Get recent recipes (not in cookbook)
+// @desc    Get recent recipes (not in cookbook) with filtering
 // @access  Private
-router.get('/recents/list', auth, async (req, res) => {
+router.get('/recents/list', auth, [
+  query('search').optional().isString(),
+  query('category').optional().isString(),
+  query('tag').optional().isString()
+], async (req, res) => {
   try {
-    const recipes = await Recipe.find({
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed', 
+        errors: errors.array() 
+      });
+    }
+
+    const { search, category, tag } = req.query;
+
+    // Build base MongoDB query - only show recent recipes
+    const mongoQuery = { 
       user: req.userId,
       isInRecents: true,
       isInCookbook: false,
       expiresAt: { $gt: new Date() } // Only get non-expired
-    })
-      .sort({ createdAt: -1 })
+    };
+    
+    // Filter by category
+    if (category && category !== 'All') {
+      mongoQuery.category = category;
+    }
+    
+    // Filter by tag (exact match in tags array)
+    if (tag && tag.trim()) {
+      mongoQuery.tags = { $in: [new RegExp(tag.trim(), 'i')] }; // Case-insensitive partial match
+    }
+    
+    // Text search (searches name, description, and tags)
+    let recipeQuery = Recipe.find(mongoQuery);
+    if (search && search.trim()) {
+      recipeQuery = Recipe.find({
+        ...mongoQuery,
+        $text: { $search: search.trim() }
+      });
+    }
+
+    // Execute query with sorting
+    const recipes = await recipeQuery
+      .sort(search && search.trim() ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
       .populate('user', 'name email');
 
     res.json({

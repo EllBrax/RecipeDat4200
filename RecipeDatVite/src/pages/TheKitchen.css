@@ -94,6 +94,13 @@
   .workbench { grid-template-columns: 1fr; }
 }
 
+/* Dropzone wrapper */
+.dropzone-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* Dropzone */
 .dropzone {
   position: relative;
@@ -138,15 +145,8 @@
 }
 
 .preview-remove {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  height: 36px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(4px);
-  border: 1px solid var(--border, #3a3c3f);
+  align-self: flex-start;
+  margin-top: 0;
 }
 
 /* -----------------------------------

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { recipesAPI } from "../services/api";
 import "./Cookbook.css";
@@ -39,7 +39,6 @@ function RecipeCard({ recipe, onOpen, onDelete }) {
       {...hoverProps}
       style={{ position: "relative" }}
     >
-      <div className="cb-card-media" aria-hidden="true" />
       <div className="cb-card-body">
         <h3 className="cb-card__title">{recipe.name}</h3>
         <div className="cb-card__meta">
@@ -131,12 +130,22 @@ export default function Recents() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [active, setActive] = useState(null);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
 
   const loadRecents = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await recipesAPI.getRecentRecipes();
+      // Build query parameters for backend filtering
+      const params = {};
+      if (query && query.trim()) {
+        params.search = query.trim();
+      }
+      if (category && category !== 'All') {
+        params.category = category;
+      }
+      const response = await recipesAPI.getRecentRecipes(params);
       setRecipes(response.recipes);
     } catch (error) {
       setError(error.message);
@@ -149,7 +158,7 @@ export default function Recents() {
     if (isAuthenticated) {
       loadRecents();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, query, category]); // Reload when filters change
 
   const openRecipe = (r) => {
     setActive(r);
@@ -185,6 +194,16 @@ export default function Recents() {
     }
   };
 
+  // Get unique categories from recipes
+  const categories = useMemo(() => {
+    const set = new Set(recipes.map((r) => (r.category || "").trim()).filter(Boolean));
+    return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [recipes]);
+
+  // Recipes are already filtered by the backend, but we can do additional client-side filtering if needed
+  // For now, use recipes directly since backend handles the filtering
+  const filteredRecipes = recipes;
+
   const headerTags = active ? [
     `${active.timeMinutes || 0} min`,
     `Serves ${active.servings || 1}`,
@@ -217,7 +236,7 @@ export default function Recents() {
       <div className="container">
         <div className="cb-head">
           <h2 className="cb-title">Recent Recipes</h2>
-          <span className="cb-tag">{recipes.length} recipes</span>
+          <span className="cb-tag">{filteredRecipes.length} {filteredRecipes.length === 1 ? 'recipe' : 'recipes'}</span>
           <div className="cb-head__spacer" />
           
           {error && (
@@ -260,8 +279,31 @@ export default function Recents() {
           </p>
         </div>
 
+        {/* Filter toolbar */}
+        <div className="cb-toolbar" style={{ marginBottom: "16px" }}>
+          <input
+            className="cb-input"
+            placeholder="Search by name, category, tag, or ingredient…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search recipes"
+          />
+          <select
+            className="cb-input cb-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            aria-label="Filter by category"
+          >
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <section className="cb-grid">
-          {recipes.map((r) => (
+          {filteredRecipes.map((r) => (
             <RecipeCard 
               key={r._id || r.id} 
               recipe={r} 
@@ -269,8 +311,12 @@ export default function Recents() {
               onDelete={handleDeleteRecipe}
             />
           ))}
-          {recipes.length === 0 && !loading && (
-            <div className="cb-empty">No recent recipes. Generate some in The Kitchen!</div>
+          {filteredRecipes.length === 0 && !loading && (
+            <div className="cb-empty">
+              {recipes.length === 0 
+                ? "No recent recipes. Generate some in The Kitchen!" 
+                : "No recipes match your filters."}
+            </div>
           )}
         </section>
 

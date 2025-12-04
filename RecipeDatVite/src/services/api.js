@@ -162,9 +162,11 @@ export const recipesAPI = {
     });
   },
 
-  // Get recent recipes (not in cookbook)
-  getRecentRecipes: async () => {
-    return await apiRequest('/recipes/recents/list');
+  // Get recent recipes (not in cookbook) with optional filtering
+  getRecentRecipes: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = queryString ? `/recipes/recents/list?${queryString}` : '/recipes/recents/list';
+    return await apiRequest(endpoint);
   },
 
   // Save recipe to cookbook

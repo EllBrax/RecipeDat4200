@@ -44,7 +44,6 @@ function RecipeCard({ recipe, onOpen }) {
       }}
       {...hoverProps}
     >
-      <div className="cb-card-media" aria-hidden="true" />
       <div className="cb-card-body">
         <h3 className="cb-card__title">{recipe.name}</h3>
         <div className="cb-card__meta">
@@ -144,12 +143,7 @@ export default function Cookbook() {
     return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [recipes]);
 
-  // Load recipes when component mounts or when filters change
-  useEffect(() => {
-    loadRecipes();
-  }, [loadRecipes]);
-
-  // Update filters when local state changes
+  // Update filters when local state changes, then reload recipes
   useEffect(() => {
     updateFilters({
       search: query,
@@ -157,9 +151,17 @@ export default function Cookbook() {
       sortBy: sort.includes("name") ? "name" : "timeMinutes",
       sortOrder: sort.includes("desc") ? "desc" : "asc"
     });
+    // loadRecipes will be called automatically when filters change (it depends on filters)
   }, [query, category, sort, updateFilters]);
 
-  const filtered = recipes; // Recipes are already filtered by the context
+  // Load recipes when component mounts or when filters change
+  useEffect(() => {
+    loadRecipes();
+  }, [loadRecipes]);
+
+  // Recipes are already filtered by the backend via loadRecipes()
+  // The backend handles text search (name, description, tags) and category filtering
+  const filtered = recipes;
 
   // open/close modal
   const openRecipe = (r) => {
@@ -301,9 +303,9 @@ export default function Cookbook() {
   return (
     <main className="cookbook cb">
       <div className="container">
-      <div className="cb-head">
-        <h2 className="cb-title">Cookbook</h2>
-        <span className="cb-tag">{recipes.length} recipes</span>
+        <div className="cb-head">
+          <h2 className="cb-title">Cookbook</h2>
+          <span className="cb-tag">{filtered.length} {filtered.length === 1 ? 'recipe' : 'recipes'}</span>
         <div className="cb-head__spacer" />
         
         {error && (
@@ -370,10 +372,14 @@ export default function Cookbook() {
 
       <section className="cb-grid">
         {filtered.map((r) => (
-          <RecipeCard key={r.id} recipe={r} onOpen={openRecipe} />
+          <RecipeCard key={r._id || r.id} recipe={r} onOpen={openRecipe} />
         ))}
-        {filtered.length === 0 && (
-          <div className="cb-empty">No recipes match your filters.</div>
+        {filtered.length === 0 && !loading && (
+          <div className="cb-empty">
+            {recipes.length === 0 
+              ? "No recipes in your cookbook. Add some recipes!" 
+              : "No recipes match your filters."}
+          </div>
         )}
       </section>
 

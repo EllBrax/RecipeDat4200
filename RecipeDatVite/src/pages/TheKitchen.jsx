@@ -24,6 +24,7 @@ export default function TheKitchen() {
   // Result state
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [isMockGeneration, setIsMockGeneration] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -120,6 +121,9 @@ export default function TheKitchen() {
         response.recipe.steps = [];
       }
       
+      // Check if mock generation was used
+      setIsMockGeneration(response.isMockGeneration || false);
+      
       setResult(response.recipe);
     } catch (error) {
       console.error("Recipe generation failed:", error);
@@ -212,6 +216,7 @@ export default function TheKitchen() {
   const backToKitchen = () => {
     setResult(null);
     setIsSubmitting(false);
+    setIsMockGeneration(false);
   };
 
   // Fallback scrim: use theme var if present; otherwise a default
@@ -284,6 +289,31 @@ export default function TheKitchen() {
           {/* OUTPUT VIEW */}
           {result ? (
             <section className="result" aria-live="polite">
+              {isMockGeneration && (
+                <div className="alert" style={{ 
+                  background: "#fff3cd", 
+                  border: "2px solid #ffc107", 
+                  padding: "16px", 
+                  borderRadius: "8px",
+                  margin: "16px 0",
+                  color: "#856404",
+                  fontWeight: "bold",
+                  fontSize: "1.1em",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  boxShadow: "0 2px 8px rgba(255, 193, 7, 0.3)"
+                }}>
+                  <span style={{ fontSize: "1.5em" }}>⚠️</span>
+                  <div>
+                    <strong>AI Generation Failed - Using Mock Recipe</strong>
+                    <p style={{ margin: "8px 0 0 0", fontWeight: "normal", fontSize: "0.9em" }}>
+                      The AI service was unable to generate a recipe. This is a placeholder recipe with generic steps. 
+                      Please check your AI service configuration or try again later.
+                    </p>
+                  </div>
+                </div>
+              )}
               <article className="recipe card">
                 <div className="recipe-head">
                   <h2 className="h2">{result.title || result.name || 'AI-Generated Recipe'}</h2>
@@ -351,48 +381,52 @@ export default function TheKitchen() {
               onSubmit={handleSubmit}
               aria-busy={isSubmitting ? "true" : "false"}
             >
-              <div
-                className={`dropzone ${isDragging ? "dragging" : ""} ${imageUrl ? "has-image" : ""}`}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                onClick={!imageUrl ? onPickFile : undefined}
-                role="button"
-                aria-label="Add an image by clicking or dragging a file here"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (!imageUrl && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    onPickFile();
-                  }
-                }}
-              >
-                {!imageUrl ? (
-                  <div className="dropzone-inner">
-                    <div className="icon" aria-hidden="true">📷</div>
-                    <p className="dz-title">Drop an image here</p>
-                    <p className="dz-sub">or click to choose a file</p>
-                  </div>
-                ) : (
-                  <div className="preview-wrap">
-                    <img className="preview" src={imageUrl} alt="Selected preview" />
-                    <button
-                      type="button"
-                      className="btn ghost preview-remove"
-                      onClick={removeImage}
-                      aria-label="Remove selected image"
-                    >
-                      Remove
-                    </button>
-                  </div>
+              <div className="dropzone-wrapper">
+                <div
+                  className={`dropzone ${isDragging ? "dragging" : ""} ${imageUrl ? "has-image" : ""}`}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onDrop={onDrop}
+                  onClick={!imageUrl ? onPickFile : undefined}
+                  role="button"
+                  aria-label="Add an image by clicking or dragging a file here"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (!imageUrl && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      onPickFile();
+                    }
+                  }}
+                >
+                  {!imageUrl ? (
+                    <div className="dropzone-inner">
+                      <div className="icon" aria-hidden="true">📷</div>
+                      <p className="dz-title">Drop an image here</p>
+                      <p className="dz-sub">or click to choose a file</p>
+                    </div>
+                  ) : (
+                    <div className="preview-wrap">
+                      <img className="preview" src={imageUrl} alt="Selected preview" />
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={onFileChange}
+                    hidden
+                  />
+                </div>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    className="btn primary preview-remove"
+                    onClick={removeImage}
+                    aria-label="Remove selected image"
+                  >
+                    Remove
+                  </button>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={onFileChange}
-                  hidden
-                />
               </div>
 
               <div className="ingredients">

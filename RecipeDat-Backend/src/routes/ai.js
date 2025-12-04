@@ -166,16 +166,28 @@ router.post('/generate-recipe', auth, upload.single('image'), async (req, res) =
 
     // Generate recipe using AI
     let generatedRecipe;
+    let aiGenerationFailed = false;
     if (imageFile) {
       // Use AI model to generate from image
       try {
+        console.log('🤖 Attempting AI recipe generation...');
         generatedRecipe = await generateAIRecipe(imageFile.path, ingredients || []);
+        console.log('✅ AI generation successful!', {
+          title: generatedRecipe.title || generatedRecipe.name,
+          stepsCount: generatedRecipe.steps?.length,
+          ingredientsCount: generatedRecipe.ingredients?.length
+        });
       } catch (aiError) {
-        console.error('AI generation failed, falling back to mock:', aiError.message);
+        console.error('❌ AI generation failed:', aiError.message);
+        console.error('❌ Error stack:', aiError.stack);
+        console.error('⚠️  Falling back to mock recipe - THIS MEANS THE AI IS NOT WORKING');
+        aiGenerationFailed = true;
         // Fallback to mock generation if AI fails
         generatedRecipe = await generateMockRecipe(ingredients, { path: imageFile.path }, prompt);
       }
     } else {
+      console.warn('⚠️  No image provided, using mock recipe');
+      aiGenerationFailed = true;
       // Fallback to mock generation if no image
       generatedRecipe = await generateMockRecipe(ingredients, null, prompt);
     }
@@ -184,14 +196,20 @@ router.post('/generate-recipe', auth, upload.single('image'), async (req, res) =
     const normalizedRecipe = normalizeRecipeData(generatedRecipe);
     
     // Debug logging
-    console.log('Raw recipe from AI:', JSON.stringify(generatedRecipe, null, 2));
-    console.log('Normalized recipe:', JSON.stringify({
+    console.log('📋 Raw recipe from AI:', JSON.stringify(generatedRecipe, null, 2));
+    console.log('📋 Normalized recipe:', JSON.stringify({
       name: normalizedRecipe.name,
       ingredientsCount: normalizedRecipe.ingredients?.length,
       stepsCount: normalizedRecipe.steps?.length,
       stepsType: normalizedRecipe.steps?.[0]?.constructor?.name,
-      firstStep: normalizedRecipe.steps?.[0]
+      firstStep: normalizedRecipe.steps?.[0],
+      allSteps: normalizedRecipe.steps?.map(s => typeof s === 'string' ? s : s.instruction)
     }, null, 2));
+    
+    // Warn if using mock recipe
+    if (aiGenerationFailed) {
+      console.warn('⚠️  WARNING: Using mock recipe - steps will be generic. Check backend logs for AI generation errors.');
+    }
     
     // Ensure all required fields are present and valid
     if (!normalizedRecipe.name || normalizedRecipe.name.trim().length === 0) {
@@ -211,7 +229,8 @@ router.post('/generate-recipe', auth, upload.single('image'), async (req, res) =
     }
     if (!normalizedRecipe.steps || normalizedRecipe.steps.length === 0) {
       // Add fallback steps if none were extracted
-      console.warn('No steps found, adding fallback steps');
+      console.warn('⚠️  No steps found in recipe, adding generic fallback steps');
+      console.warn('⚠️  This suggests the AI did not generate steps or parsing failed');
       normalizedRecipe.steps = [
         {
           stepNumber: 1,
@@ -274,14 +293,16 @@ router.post('/generate-recipe', auth, upload.single('image'), async (req, res) =
 
     const responseData = {
       message: 'Recipe generated successfully',
-      recipe: recipe.toObject ? recipe.toObject() : recipe
+      recipe: recipe.toObject ? recipe.toObject() : recipe,
+      isMockGeneration: aiGenerationFailed // Flag to indicate if mock generation was used
     };
     
     console.log('Sending response with recipe:', {
       recipeId: responseData.recipe._id,
       recipeName: responseData.recipe.name,
       stepsCount: responseData.recipe.steps?.length,
-      ingredientsCount: responseData.recipe.ingredients?.length
+      ingredientsCount: responseData.recipe.ingredients?.length,
+      isMockGeneration: aiGenerationFailed
     });
 
     res.json(responseData);

@@ -5,8 +5,6 @@ import "./Home.css";
 
 export default function Home() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
-  const [activeCat, setActiveCat] = useState("All");
   const { recipes, loadRecipes, loading } = useRecipes();
 
   // Wire these to your router/data later
@@ -24,46 +22,16 @@ export default function Home() {
     return recipes.slice(0, 8);
   }, [recipes]);
 
-  const onSearch = (e) => {
-    e.preventDefault();
-    // TODO: trigger search with `query` and `activeCat`
-  };
-
-  const categories = ["All", "Breakfast", "Lunch", "Dinner", "Vegetarian", "Dessert", "Drinks"];
-
   return (
     <main className="home" role="main">
       <div className="container">
-        {/* Page intro / search */}
+        {/* Welcome section */}
         <section className="section pad-y">
-          <h1 className="h1">Find your next recipe</h1>
-          <p className="lead">Search by ingredient, tag, or title. Filter by category.</p>
-
-          <form className="search-row" onSubmit={onSearch} role="search" aria-label="Recipe search">
-            <input
-              type="search"
-              inputMode="search"
-              placeholder="e.g., chicken, pasta, #weeknight"
-              aria-label="Search recipes"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <button className="btn primary" type="submit">Search</button>
-          </form>
-
-          <div className="chip-row" role="tablist" aria-label="Categories">
-            {categories.map((c) => (
-              <button
-                key={c}
-                role="tab"
-                aria-selected={activeCat === c}
-                className={`chip ${activeCat === c ? "chip-active" : ""}`}
-                onClick={() => setActiveCat(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+          <h1 className="h1">Welcome to RecipeDat</h1>
+          <p className="lead">
+            Your personal recipe assistant powered by AI. Transform ingredients into delicious meals, 
+            organize your favorite recipes, and discover new culinary adventures.
+          </p>
         </section>
 
         {/* Featured banner (web-wide) */}
