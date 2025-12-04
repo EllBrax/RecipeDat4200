@@ -1,11 +1,16 @@
 // src/pages/TheKitchen.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useRecipes } from "../contexts/RecipeContext";
+import { aiAPI, recipesAPI } from "../services/api";
 import "./TheKitchen.css";
 import kitchenBg from "../assets/kitchen-bg.jpg"; // default background
 
 export default function TheKitchen() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { createRecipe, loadRecipes, saveToCookbook: saveRecipeToCookbook } = useRecipes();
 
   // Input state
   const [imageFile, setImageFile] = useState(null);
@@ -18,6 +23,8 @@ export default function TheKitchen() {
 
   // Result state
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [isMockGeneration, setIsMockGeneration] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -67,59 +74,149 @@ export default function TheKitchen() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!isAuthenticated) {
+      setError("Please log in to generate recipes");
+      return;
+    }
+
     setIsSubmitting(true);
+    setError(null);
 
-    // ===== INTEGRATE YOUR AI MODEL HERE =====
-    // const form = new FormData();
-    // if (imageFile) form.append("image", imageFile);
-    // form.append("ingredients", ingredientsText);
-    // const response = await fetch("<your-endpoint>", { method: "POST", body: form });
-    // const data = await response.json();
-    // setResult(data);
-
-    // TEMP: demo result until AI is integrated
-    const fake = {
-      title: "AI-Generated Weeknight Pasta",
-      ingredients: ingredientsText
+    try {
+      // Prepare form data for AI API
+      const formData = new FormData();
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+      
+      const ingredients = ingredientsText
         .split("\n")
         .map((s) => s.trim())
-        .filter(Boolean),
-      steps: [
-        "Boil water and salt generously.",
-        "Sauté aromatics; add your main ingredient(s).",
-        "Fold in cooked pasta; adjust with starchy water.",
-        "Season to taste and serve warm.",
-      ],
-      note:
-        "Replace this with the model’s real output once integrated with your endpoint.",
-      imageUrl,
-    };
+        .filter(Boolean);
+      
+      formData.append("ingredients", JSON.stringify(ingredients));
+      
+      if (ingredientsText.trim()) {
+        formData.append("prompt", `Generate a recipe using these ingredients: ${ingredients.join(", ")}`);
+      }
 
-    setTimeout(() => {
-      setResult(fake);
+      // Call AI API
+      const response = await aiAPI.generateRecipe(formData);
+      console.log("AI API response:", response);
+      console.log("Recipe data:", response.recipe);
+      
+      // Ensure recipe has required fields
+      if (!response.recipe) {
+        throw new Error("No recipe data received from server");
+      }
+      
+      // Validate recipe structure
+      if (!response.recipe.ingredients || !Array.isArray(response.recipe.ingredients)) {
+        console.warn("Recipe missing or invalid ingredients:", response.recipe);
+        response.recipe.ingredients = [];
+      }
+      if (!response.recipe.steps || !Array.isArray(response.recipe.steps)) {
+        console.warn("Recipe missing or invalid steps:", response.recipe);
+        response.recipe.steps = [];
+      }
+      
+      // Check if mock generation was used
+      setIsMockGeneration(response.isMockGeneration || false);
+      
+      setResult(response.recipe);
+    } catch (error) {
+      console.error("Recipe generation failed:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
+      setError(error.message || "Failed to generate recipe. Please try again.");
+    } finally {
       setIsSubmitting(false);
-    }, 300);
+    }
   };
 
-  const saveToCookbook = () => {
+  const saveToCookbook = async () => {
     try {
-      const key = "cookbook";
-      const existing = JSON.parse(localStorage.getItem(key) || "[]");
-      const entry = {
-        id: Date.now(),
-        ...result,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(key, JSON.stringify([entry, ...existing]));
-    } catch {
-      // no-op
+      if (!result) return;
+      
+      console.log("Saving recipe to cookbook:", result);
+      
+      // Recipe is already saved to recents by AI endpoint
+      // Just move it to cookbook
+      if (result._id) {
+        console.log("Recipe has _id, calling saveToCookbook API:", result._id);
+        
+        // Use context method if available, otherwise fall back to API
+        if (saveRecipeToCookbook) {
+          await saveRecipeToCookbook(result._id);
+        } else {
+          await recipesAPI.saveToCookbook(result._id);
+          // Refresh recipes list
+          if (loadRecipes) {
+            await loadRecipes();
+          }
+        }
+        
+        console.log("Recipe saved to cookbook successfully");
+        
+        // Navigate to cookbook
+        navigate("/cookbook");
+      } else {
+        // Fallback for older flow
+        const recipeData = {
+          name: result.title || result.name,
+          description: result.note || "AI-generated recipe",
+          category: result.category || "Other",
+          timeMinutes: result.timeMinutes || 30,
+          servings: result.servings || 4,
+          difficulty: result.difficulty || "Easy",
+          ingredients: result.ingredients.map(ingredient => ({
+            name: ingredient,
+            amount: "1",
+            unit: "item",
+            notes: ""
+          })),
+          steps: result.steps.map((step, index) => ({
+            stepNumber: index + 1,
+            instruction: step,
+            timeMinutes: Math.ceil((result.timeMinutes || 30) / result.steps.length)
+          })),
+          tags: result.tags || ["ai-generated"],
+          imageUrl: result.imageUrl,
+          isGenerated: true,
+          isPublic: false
+        };
+        await createRecipe(recipeData);
+        
+        // Refresh recipes list before navigating
+        try {
+          if (loadRecipes) {
+            await loadRecipes();
+          }
+        } catch (err) {
+          console.warn("Failed to refresh recipes:", err);
+        }
+        
+        navigate("/cookbook");
+      }
+    } catch (error) {
+      console.error("Failed to save recipe:", error);
+      setError("Failed to save recipe. Please try again.");
     }
-    navigate("/cookbook");
+  };
+
+  const skipToRecents = () => {
+    // Recipe is already saved to recents, just navigate
+    navigate("/recents");
   };
 
   const backToKitchen = () => {
     setResult(null);
     setIsSubmitting(false);
+    setIsMockGeneration(false);
   };
 
   // Fallback scrim: use theme var if present; otherwise a default
@@ -164,20 +261,72 @@ export default function TheKitchen() {
             <p className="muted">
               Drop in an image and list your ingredients. Your AI sous-chef will draft a recipe.
             </p>
+            {!isAuthenticated && (
+              <div className="alert" style={{ 
+                background: "#fff3cd", 
+                border: "1px solid #ffeaa7", 
+                padding: "12px", 
+                borderRadius: "4px",
+                margin: "16px 0"
+              }}>
+                <strong>Please log in</strong> to generate AI recipes and save them to your cookbook.
+              </div>
+            )}
+            {error && (
+              <div className="alert" style={{ 
+                background: "#f8d7da", 
+                border: "1px solid #f5c6cb", 
+                padding: "12px", 
+                borderRadius: "4px",
+                margin: "16px 0",
+                color: "#721c24"
+              }}>
+                <strong>Error:</strong> {error}
+              </div>
+            )}
           </header>
 
           {/* OUTPUT VIEW */}
           {result ? (
             <section className="result" aria-live="polite">
+              {isMockGeneration && (
+                <div className="alert" style={{ 
+                  background: "#fff3cd", 
+                  border: "2px solid #ffc107", 
+                  padding: "16px", 
+                  borderRadius: "8px",
+                  margin: "16px 0",
+                  color: "#856404",
+                  fontWeight: "bold",
+                  fontSize: "1.1em",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  boxShadow: "0 2px 8px rgba(255, 193, 7, 0.3)"
+                }}>
+                  <span style={{ fontSize: "1.5em" }}>⚠️</span>
+                  <div>
+                    <strong>AI Generation Failed - Using Mock Recipe</strong>
+                    <p style={{ margin: "8px 0 0 0", fontWeight: "normal", fontSize: "0.9em" }}>
+                      The AI service was unable to generate a recipe. This is a placeholder recipe with generic steps. 
+                      Please check your AI service configuration or try again later.
+                    </p>
+                  </div>
+                </div>
+              )}
               <article className="recipe card">
                 <div className="recipe-head">
-                  <h2 className="h2">{result.title}</h2>
+                  <h2 className="h2">{result.title || result.name || 'AI-Generated Recipe'}</h2>
                   {result.imageUrl ? (
                     <img
                       className="recipe-image"
-                      src={result.imageUrl}
+                      src={result.imageUrl.startsWith('http') ? result.imageUrl : `http://localhost:3001${result.imageUrl}`}
                       alt="Selected or generated dish preview"
                       loading="lazy"
+                      onError={(e) => {
+                        console.error('Image failed to load:', result.imageUrl);
+                        e.target.style.display = 'none';
+                      }}
                     />
                   ) : null}
                 </div>
@@ -186,25 +335,38 @@ export default function TheKitchen() {
                   <div>
                     <h3>Ingredients</h3>
                     <ul>
-                      {result.ingredients.map((ing, i) => (
-                        <li key={i}>{ing}</li>
-                      ))}
+                      {result.ingredients && result.ingredients.map((ing, i) => {
+                        // Handle both string and object formats
+                        const ingredientText = typeof ing === 'string' 
+                          ? ing 
+                          : `${ing.amount || '1'} ${ing.unit || ''} ${ing.name || 'Ingredient'}`.trim();
+                        return <li key={i}>{ingredientText}</li>;
+                      })}
                     </ul>
                   </div>
                   <div>
                     <h3>Steps</h3>
                     <ol>
-                      {result.steps.map((step, i) => (
-                        <li key={i}>{step}</li>
-                      ))}
+                      {result.steps && result.steps.map((step, i) => {
+                        // Handle both string and object formats
+                        const stepText = typeof step === 'string' 
+                          ? step 
+                          : (step.instruction || step.step || `Step ${i + 1}`);
+                        return <li key={i}>{stepText}</li>;
+                      })}
                     </ol>
                   </div>
-                  {result.note && <p className="muted">{result.note}</p>}
+                  {(result.note || result.description) && (
+                    <p className="muted">{result.note || result.description}</p>
+                  )}
                 </div>
 
                 <div className="actions">
                   <button className="btn primary" onClick={saveToCookbook}>
                     Save to Cookbook
+                  </button>
+                  <button className="btn secondary" onClick={skipToRecents}>
+                    Skip (Save to Recents)
                   </button>
                   <button className="btn ghost" onClick={backToKitchen}>
                     Back to The Kitchen
@@ -219,48 +381,52 @@ export default function TheKitchen() {
               onSubmit={handleSubmit}
               aria-busy={isSubmitting ? "true" : "false"}
             >
-              <div
-                className={`dropzone ${isDragging ? "dragging" : ""} ${imageUrl ? "has-image" : ""}`}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                onClick={!imageUrl ? onPickFile : undefined}
-                role="button"
-                aria-label="Add an image by clicking or dragging a file here"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (!imageUrl && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    onPickFile();
-                  }
-                }}
-              >
-                {!imageUrl ? (
-                  <div className="dropzone-inner">
-                    <div className="icon" aria-hidden="true">📷</div>
-                    <p className="dz-title">Drop an image here</p>
-                    <p className="dz-sub">or click to choose a file</p>
-                  </div>
-                ) : (
-                  <div className="preview-wrap">
-                    <img className="preview" src={imageUrl} alt="Selected preview" />
-                    <button
-                      type="button"
-                      className="btn ghost preview-remove"
-                      onClick={removeImage}
-                      aria-label="Remove selected image"
-                    >
-                      Remove
-                    </button>
-                  </div>
+              <div className="dropzone-wrapper">
+                <div
+                  className={`dropzone ${isDragging ? "dragging" : ""} ${imageUrl ? "has-image" : ""}`}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onDrop={onDrop}
+                  onClick={!imageUrl ? onPickFile : undefined}
+                  role="button"
+                  aria-label="Add an image by clicking or dragging a file here"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (!imageUrl && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      onPickFile();
+                    }
+                  }}
+                >
+                  {!imageUrl ? (
+                    <div className="dropzone-inner">
+                      <div className="icon" aria-hidden="true">📷</div>
+                      <p className="dz-title">Drop an image here</p>
+                      <p className="dz-sub">or click to choose a file</p>
+                    </div>
+                  ) : (
+                    <div className="preview-wrap">
+                      <img className="preview" src={imageUrl} alt="Selected preview" />
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={onFileChange}
+                    hidden
+                  />
+                </div>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    className="btn primary preview-remove"
+                    onClick={removeImage}
+                    aria-label="Remove selected image"
+                  >
+                    Remove
+                  </button>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={onFileChange}
-                  hidden
-                />
               </div>
 
               <div className="ingredients">
@@ -279,7 +445,11 @@ export default function TheKitchen() {
                     type="submit"
                     disabled={isSubmitting || (!imageFile && !ingredientsText.trim())}
                   >
-                    {isSubmitting ? "Generating..." : "Generate Recipe"}
+                    {isSubmitting ? (
+                      <>
+                        <span className="flip-pan">🍳</span> Generating...
+                      </>
+                    ) : "Generate Recipe"}
                   </button>
                   <button
                     className="btn ghost"

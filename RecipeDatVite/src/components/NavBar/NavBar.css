@@ -80,6 +80,22 @@ header.site-header {
   min-width: 0;
 }
 
+/* Login link in header */
+.login-link {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--topbar-text, var(--header-ink));
+  font-weight: 500;
+  transition: background .15s ease, color .15s ease;
+  outline: none;
+}
+
+.login-link:hover {
+  background: rgba(0,0,0,.18);
+}
+
 /* Right logo */
 .site-logo{
   display: flex;
@@ -94,29 +110,3 @@ header.site-header {
   -webkit-user-drag: none;
 }
 
-/* If you mounted the ThemeToggle here, these keep it tidy beside the logo.
-   (Safe even if you use a separate ThemeToggle.css.) */
-.site-right .theme-toggle{
-  font: inherit;
-  padding: .45rem .75rem;
-  border-radius: 999px;
-  border: 1px solid var(--border, rgba(255,255,255,.25));
-  background: var(--surface, rgba(0,0,0,.1));
-  color: var(--topbar-text, var(--header-ink));
-  cursor: pointer;
-}
-.site-right .theme-toggle:hover{ filter: brightness(1.05); }
-
-/* Focus visibility for a11y */
-.nav-links a:focus-visible,
-.site-right .theme-toggle:focus-visible{
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
-}
-
-/* Small screens */
-@media (max-width: 520px){
-  .site-brand{ font-size: 1.05rem; }
-  .site-logo img{ height: 36px; }
-  .nav-links a{ padding: 6px 10px; }
-}

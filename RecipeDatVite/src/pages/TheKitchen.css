@@ -94,6 +94,13 @@
   .workbench { grid-template-columns: 1fr; }
 }
 
+/* Dropzone wrapper */
+.dropzone-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* Dropzone */
 .dropzone {
   position: relative;
@@ -138,15 +145,8 @@
 }
 
 .preview-remove {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  height: 36px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(4px);
-  border: 1px solid var(--border, #3a3c3f);
+  align-self: flex-start;
+  margin-top: 0;
 }
 
 /* -----------------------------------
@@ -194,6 +194,7 @@
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .btn.primary {
@@ -208,6 +209,21 @@
 .btn:hover { filter: brightness(1.05); }
 
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Pan flipping animation */
+.flip-pan {
+  display: inline-block;
+  animation: flipPan 1.5s ease-in-out infinite;
+}
+
+@keyframes flipPan {
+  0%, 100% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(180deg);
+  }
+}
 
 /* -----------------------------------
    Result view

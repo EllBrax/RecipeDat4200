@@ -99,5 +99,3 @@ a:hover { color: var(--link-hover); }
 .bg-with-scrim > * {
   position: relative;
 }
-
-

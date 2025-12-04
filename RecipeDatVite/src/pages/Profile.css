@@ -112,3 +112,38 @@
 .btn:hover { background: var(--elevated, #2d2f31); }
 .btn.primary:hover { filter: brightness(1.08); }
 .gap-8 { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+/* Edit form styles */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-input {
+  padding: 8px 12px;
+  border: 1px solid var(--border, #3a3c3f);
+  border-radius: 8px;
+  background: var(--surface, #27292b);
+  color: var(--text);
+  font-size: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: var(--brand, #4a9eff);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.error-message {
+  color: #f44336;
+  font-size: 14px;
+  margin-top: 4px;
+}
