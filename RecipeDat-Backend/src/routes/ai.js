@@ -208,9 +208,9 @@ if (imageFile) {
     }, null, 2));
     
     // Warn if using mock recipe
-    if (aiGenerationFailed) {
-      console.warn('⚠️  WARNING: Using mock recipe - steps will be generic. Check backend logs for AI generation errors.');
-    }
+    // if (aiGenerationFailed) {
+    //   console.warn('⚠️  WARNING: Using mock recipe - steps will be generic. Check backend logs for AI generation errors.');
+    // }
     
     // Ensure all required fields are present and valid
     if (!normalizedRecipe.name || normalizedRecipe.name.trim().length === 0) {
@@ -295,7 +295,7 @@ if (imageFile) {
     const responseData = {
       message: 'Recipe generated successfully',
       recipe: recipe.toObject ? recipe.toObject() : recipe,
-      isMockGeneration: aiGenerationFailed // Flag to indicate if mock generation was used
+      // isMockGeneration: aiGenerationFailed // Flag to indicate if mock generation was used
     };
     
     console.log('Sending response with recipe:', {
@@ -303,7 +303,7 @@ if (imageFile) {
       recipeName: responseData.recipe.name,
       stepsCount: responseData.recipe.steps?.length,
       ingredientsCount: responseData.recipe.ingredients?.length,
-      isMockGeneration: aiGenerationFailed
+      // isMockGeneration: aiGenerationFailed
     });
 
     res.json(responseData);
