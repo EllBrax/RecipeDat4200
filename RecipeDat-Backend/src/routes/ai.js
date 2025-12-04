@@ -7,6 +7,7 @@ import { promisify } from 'util';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { startStopwatch } from '../utils/stopwatch.js'; 
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -164,33 +165,33 @@ router.post('/generate-recipe', auth, upload.single('image'), async (req, res) =
       });
     }
 
+        // Generate recipe using AI
     // Generate recipe using AI
-    let generatedRecipe;
-    let aiGenerationFailed = false;
-    if (imageFile) {
-      // Use AI model to generate from image
-      try {
-        console.log('🤖 Attempting AI recipe generation...');
-        generatedRecipe = await generateAIRecipe(imageFile.path, ingredients || []);
-        console.log('✅ AI generation successful!', {
-          title: generatedRecipe.title || generatedRecipe.name,
-          stepsCount: generatedRecipe.steps?.length,
-          ingredientsCount: generatedRecipe.ingredients?.length
-        });
-      } catch (aiError) {
-        console.error('❌ AI generation failed:', aiError.message);
-        console.error('❌ Error stack:', aiError.stack);
-        console.error('⚠️  Falling back to mock recipe - THIS MEANS THE AI IS NOT WORKING');
-        aiGenerationFailed = true;
-        // Fallback to mock generation if AI fails
-        generatedRecipe = await generateMockRecipe(ingredients, { path: imageFile.path }, prompt);
-      }
-    } else {
-      console.warn('⚠️  No image provided, using mock recipe');
-      aiGenerationFailed = true;
-      // Fallback to mock generation if no image
-      generatedRecipe = await generateMockRecipe(ingredients, null, prompt);
-    }
+let generatedRecipe;
+
+if (imageFile) {
+  // Start the stopwatch before calling AI
+  const stopStopwatch = startStopwatch('AI generation');
+
+  try {
+    generatedRecipe = await generateAIRecipe(imageFile.path, ingredients || []);
+
+    const totalSec = stopStopwatch();
+    console.log(`AI generation succeeded in ${totalSec}s`);
+  } catch (aiError) {
+    const totalSec = stopStopwatch();
+    console.error(`AI generation failed after ${totalSec}s`, aiError);
+
+    return res.status(500).json({
+      message: 'AI generation failed',
+      error: aiError.message || 'Unknown error from AI'
+    });
+  }
+} else {
+  // Fallback to mock generation if no image was uploaded
+  generatedRecipe = await generateMockRecipe(ingredients, null, prompt);
+}
+
 
     // Normalize recipe data to match Recipe schema
     const normalizedRecipe = normalizeRecipeData(generatedRecipe);

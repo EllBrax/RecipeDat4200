@@ -13,6 +13,37 @@ from pathlib import Path
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
 from PIL import Image
+import re
+import unicodedata
+
+def normalize_ascii(text: str) -> str:
+    """
+    Remove emoji / non-ASCII characters and normalize whitespace.
+    Keeps plain English letters, numbers and common punctuation.
+    """
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+
+    # Normalize accents etc.
+    text = unicodedata.normalize("NFKD", text)
+
+    # Keep basic printable ASCII and spaces
+    filtered = []
+    for ch in text:
+        code = ord(ch)
+        if ch in "\n\r\t":
+            filtered.append(" ")
+        elif 32 <= code <= 126:  # standard printable ASCII
+            filtered.append(ch)
+        # else: drop emoji / weird symbols
+
+    text = "".join(filtered)
+
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 # Global cache for the model and processor - loads once per Python process, reuses for all calls within that process
 # Note: Since Node.js spawns a new Python process for each request, this cache only persists within a single request
@@ -86,32 +117,45 @@ def generate_recipe(image_path, ingredients_list):
         print(f"Processing image: {image_path}", file=sys.stderr)
         image = Image.open(image_path).convert('RGB')
         
-        # Prepare ingredients text
-        ingredients_text = ", ".join(ingredients_list) if ingredients_list else ""
+                # Prepare ingredients text
+        ingredients_text = ", ".join(ingredients_list) if ingredients_list else "available ingredients"
         
         # Create the prompt for Qwen2-VL
-        prompt_text = f"""Generate a detailed recipe based on this image of food. Use these ingredients if applicable: {ingredients_text}.
+        prompt_text = f"""
+You are an expert chef and recipe developer.
 
-Please provide:
-1. A creative, descriptive recipe name
-2. Category (Breakfast, Lunch, Dinner, Dessert, Snack, Beverage, Appetizer, Side, or Other)
-3. Difficulty level (Easy, Medium, or Hard)
-4. Estimated cooking time in minutes
-5. Number of servings
-6. List of ingredients with quantities (format as: "amount unit ingredient name")
-7. Step-by-step cooking instructions (minimum 5 steps, numbered)
-8. At least 3-5 relevant tags based on the recipe content
-9. Any helpful notes or tips
+You are given:
+- A photo of a pantry, refrigerator, or group of food items.
+- An optional list of detected ingredient names: {ingredients_text}.
 
-Format your response as follows:
+Your job is to:
 
-Recipe Name: [recipe name here]
-Category: [category]
-Difficulty: [difficulty]
-Time: [time] minutes
-Servings: [servings]
+1) Infer the realistic ingredients available
+   - ONLY list items that are clearly visible in the image or in the provided list.
+   - If you are not sure of the exact type (for example which herb), use a generic term like
+     "leafy greens", "fresh herbs", or "citrus fruit" instead of guessing.
+   - Do NOT invent ingredients that are not visibly present.
+   - List each ingredient only once. No duplicates.
+   - Keep the list short: at most 10–12 ingredients in total.
+   - You may assume only very common pantry staples if needed: water, salt, pepper,
+     cooking oil, butter.
+
+2) Create ONE complete, realistic recipe that a home cook could actually make
+   - The recipe must mainly use the ingredients you identified.
+   - Do NOT require many extra ingredients beyond those visible/listed and the basic staples above.
+   - Keep it practical and not overly complex.
+
+Return your answer in EXACTLY this text format:
+
+Recipe Name: [creative, descriptive recipe name]
+Category: [Breakfast | Lunch | Dinner | Dessert | Snack | Beverage | Appetizer | Side | Other]
+Difficulty: [Easy | Medium | Hard]
+Time: [number] minutes
+Servings: [number]
+>>>>>>> Stashed changes
 
 Ingredients:
+- [amount] [unit] [ingredient name]
 - [amount] [unit] [ingredient name]
 - [amount] [unit] [ingredient name]
 ...
@@ -124,7 +168,27 @@ Instructions:
 
 Tags: [tag1], [tag2], [tag3], [tag4], [tag5]
 
-Notes: [any helpful notes or tips]"""
+
+Notes: [any helpful tips or serving suggestions]
+
+IMPORTANT RULES ABOUT INGREDIENTS:
+- Every ingredient line in the Ingredients section MUST start with a NUMBER, then a UNIT,
+  then the ingredient name. Examples:
+  - "1 cup sliced cucumber"
+  - "2 tbsp olive oil"
+  - "3 large eggs"
+- Do NOT repeat the same ingredient line multiple times.
+- Use realistic approximate amounts even if you have to guess.
+- You may add separate lines like "salt and pepper to taste" as needed.
+- Do NOT introduce completely new main ingredients in the Ingredients section that are
+  not in the image or the provided ingredient list (besides the basic staples above).
+
+IMPORTANT RULES ABOUT THE OUTPUT:
+- The "Recipe Name:" line must be the FIRST non-empty line.
+- Use the exact section headers shown: "Ingredients:", "Instructions:", "Tags:", "Notes:".
+- Keep the language clear and concise so that the recipe can be parsed programmatically.
+"""
+
 
         # Prepare messages in the format Qwen2-VL expects
         # Note: process_vision_info expects image paths or PIL Images in the messages
@@ -166,12 +230,15 @@ Notes: [any helpful notes or tips]"""
         # Generate with appropriate parameters
         with torch.no_grad():
             generated_ids = model.generate(
-                **inputs,
-                max_new_tokens=1024,  # Increased to allow for complete, full steps
-                do_sample=False,  # Use greedy decoding for more consistent results
-                temperature=0.7,
-                top_p=0.9
-            )
+
+        **inputs,
+        max_new_tokens=512,
+        do_sample=True,          # enable sampling
+        temperature=0.6,         # slightly conservative
+        top_p=0.9,
+        repetition_penalty=1.15, # gently punish repeats
+        no_repeat_ngram_size=4   # avoid repeating 4-gram phrases
+    )
         
         # Decode the response
         generated_ids_trimmed = [
@@ -510,6 +577,86 @@ def parse_recipe_output(output_text, ingredients_list):
         if "ai-generated" not in recipe["tags"]:
             recipe["tags"].append("ai-generated")
     
+    # --- Post-process ingredients: deduplicate + clamp length ---
+    if recipe.get("ingredients"):
+        seen = set()
+        cleaned = []
+        for ing in recipe["ingredients"]:
+            text = str(ing).strip()
+            if not text:
+                continue
+            key = text.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned.append(text)
+
+        # Keep at most 12 ingredients to avoid noisy, spammy lists
+        recipe["ingredients"] = cleaned[:12]
+
+       # --- Heuristic: avoid mixing sweet fruits with savory veg/eggs in one dish ---
+    FRUIT_WORDS = [
+        "banana", "bananas", "orange", "oranges", "apple", "apples",
+        "grape", "grapes", "berry", "berries", "strawberry", "strawberries",
+        "pineapple", "mango", "kiwi", "melon", "pear", "peach", "cherry", "plum"
+    ]
+    SAVORY_WORDS = [
+        "pepper", "bell pepper", "cucumber", "cucumbers", "cabbage", "lettuce",
+        "tomato", "tomatoes", "onion", "garlic", "egg", "eggs"
+    ]
+
+    if recipe.get("ingredients"):
+        ingredients = recipe["ingredients"]
+        fruit_idxs = []
+        savory_idxs = []
+
+        for idx, ing in enumerate(ingredients):
+            lower = ing.lower()
+            if any(w in lower for w in FRUIT_WORDS):
+                fruit_idxs.append(idx)
+            if any(w in lower for w in SAVORY_WORDS):
+                savory_idxs.append(idx)
+
+        if fruit_idxs and savory_idxs:
+            # Choose the dominant "flavor group"
+            keep_fruit = len(fruit_idxs) >= len(savory_idxs)
+            keep_idxs = set(fruit_idxs if keep_fruit else savory_idxs)
+            removed_ings = [
+                ingredients[i].lower()
+                for i in (savory_idxs if keep_fruit else fruit_idxs)
+            ]
+
+            recipe["ingredients"] = [
+                ing for i, ing in enumerate(ingredients)
+                if i in keep_idxs or (i not in fruit_idxs and i not in savory_idxs)
+            ]
+
+            # Also drop steps that clearly refer to removed ingredients
+            if recipe.get("steps"):
+                removed_keywords = []
+                for ing in removed_ings:
+                    removed_keywords.extend(ing.split())
+                removed_keywords = [w for w in removed_keywords if len(w) > 3]
+
+                filtered_steps = []
+                for step in recipe["steps"]:
+                    sl = step.lower()
+                    if any(w in sl for w in removed_keywords):
+                        continue
+                    filtered_steps.append(step)
+
+                if filtered_steps:
+                    recipe["steps"] = filtered_steps
+
+    # --- Clean up the title to avoid repeated words, e.g. "Salad Salad" ---
+    title = str(recipe.get("title", "")).strip()
+    if title:
+        words = []
+        for w in title.split():
+            if not words or words[-1].lower() != w.lower():
+                words.append(w)
+        recipe["title"] = " ".join(words)
+
     # Remove duplicates, empty strings, and clean up
     recipe["tags"] = [t for t in recipe["tags"] if t and len(t) > 2]
     recipe["tags"] = list(set(recipe["tags"]))[:10]  # Max 10 tags, remove duplicates
